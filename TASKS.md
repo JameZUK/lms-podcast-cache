@@ -122,8 +122,4 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       `InstalledPlugins`, manual copy removed, not flagged for removal.)*
 - [ ] Document that the built-in Podcasts plugin must stay enabled (it provides the feeds
       and menus).
-- [x] Decide the backup question for pruned episodes (DESIGN.md, "Deployment notes").
-      *(Decided 2026-09-27: the backup follows retention.)*
-- [ ] Apply it on the file server: exclude `.podcast-cache/` from the main copy, mirror it
-      separately with `--delete` (see `ACCESS.md`). Owner's change, outside this repo.
 - [ ] Note the outcome in the private runbook and changelog (see `ACCESS.md`).

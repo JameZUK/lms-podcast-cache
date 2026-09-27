@@ -404,13 +404,6 @@ in the local, gitignored `ACCESS.md`. What matters for the design:
 - While the share is mounted, `findmnt` lists both the `autofs` trigger and the `nfs4` mount
   on top of it. After autofs's idle timeout, only the `autofs` entry remains until something
   touches the path, so the guard touches the path first, then checks.
-- **The file server's nightly backup copies the music share without `--delete`.** Cached
-  episodes get backed up for free, but pruned ones would **not** be removed from the backup.
-  **Decided 2026-09-27: the backup follows retention**, so old episodes are pruned there too,
-  in line with each podcast's setting. The backup job should copy the music share as now but
-  exclude `.podcast-cache/`, and mirror `.podcast-cache/` separately with `--delete` (the
-  deletion confined to that folder). That's a change on the file server, outside this
-  plugin; the specifics are in `ACCESS.md`.
 - **The LMS host is a small VM.** Don't cache to its local disk.
 - Deploy the plugin to **`/var/lib/squeezeboxserver/Plugins/`**, *not*
   `cache/InstalledPlugins/Plugins/`: the extension manager schedules anything in
@@ -423,14 +416,16 @@ in the local, gitignored `ACCESS.md`. What matters for the design:
   `If-Range` resumes are possible. At full speed its 86 MB episode arrives in about a
   second.
 
-## Open questions for the build session
+## Open questions
 
-1. Does curl exit non-zero on the silent truncation? (Wrapper compares against
-   `Content-Length` regardless.)
-2. Background prefetch schedule — on feed refresh, on a timer, or both? And does it respect
-   a quiet-hours window so it doesn't collide with the file server's nightly backup?
+None at the moment.
 
 ### Resolved
+
+- *Does curl exit non-zero on the silent truncation?* Yes, 18; the script still checks the
+  size (2026-09-27, "Why curl").
+- *Prefetch schedule?* Both: on a timer (every 6 h by default) and whenever a feed is read,
+  with optional quiet hours (2026-09-27, "Prefetch").
 
 - *Does `ignoreInAudioScan` exclude a subdirectory?* No — it only matches whole
   `mediadirs` entries. Use a hidden cache directory instead (2026-09-27).

@@ -91,11 +91,13 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       DESIGN.md "Retention".)*
 
 ## 6. Prefetch
-- [ ] On feed refresh, queue the newest N that aren't cached.
-- [ ] Serialise downloads (one at a time) — the LMS host is a small VM and the write goes
+- [x] On feed refresh, queue the newest N that aren't cached (and check the feeds every
+      `prefetchHours`).
+- [x] Serialise downloads (one at a time) — the LMS host is a small VM and the write goes
       over NFS to the file server.
-- [ ] Consider a quiet-hours window so prefetch doesn't collide with the file server's
-      nightly backup.
+- [x] Consider a quiet-hours window so prefetch doesn't collide with the file server's
+      nightly backup. *(Done 2026-09-27: `Prefetch.pm`, settings "Automatic downloads";
+      verified on the LMS host, see DESIGN.md "Prefetch".)*
 
 ## 7. Ship
 - [ ] Test on a real hour-long episode end to end on the UPnP test speaker. That is the acceptance

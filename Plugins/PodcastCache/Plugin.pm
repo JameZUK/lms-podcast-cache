@@ -17,6 +17,7 @@ use Slim::Plugin::Podcast::ProtocolHandler;
 use Plugins::PodcastCache::Cache;
 use Plugins::PodcastCache::Downloader;
 use Plugins::PodcastCache::Feeds;
+use Plugins::PodcastCache::Prefetch;
 use Plugins::PodcastCache::ProtocolHandler;
 use Plugins::PodcastCache::Retention;
 use Plugins::PodcastCache::Status;
@@ -33,11 +34,19 @@ $prefs->init({
 	defaultKeep => 3,      # a number of newest episodes, 'all', or 'current' (only what's playing)
 	feedKeep    => {},     # feed url => same, overriding defaultKeep
 	playWait    => 30,     # seconds to wait for a download before streaming instead
+	prefetch    => 1,      # download new episodes ahead of time
+	prefetchHours => 6,    # how often to check the feeds
+	quietStart  => '',     # hours (0-23) when no background downloads start; '' = off
+	quietEnd    => '',
 });
 
 $prefs->setValidate({ validator => sub { $_[1] =~ m{^/.} } }, 'cacheRoot');
 $prefs->setValidate({ validator => sub { $_[1] =~ /^(?:all|current|[1-9]\d{0,2})$/ } }, 'defaultKeep');
 $prefs->setValidate({ validator => 'intlimit', low => 0, high => 600 }, 'playWait');
+$prefs->setValidate({ validator => 'intlimit', low => 1, high => 168 }, 'prefetchHours');
+$prefs->setValidate({ validator => sub { $_[1] =~ /^(?:|[01]?\d|2[0-3])$/ } }, 'quietStart', 'quietEnd');
+
+$prefs->setChange(sub { Plugins::PodcastCache::Prefetch->start }, 'prefetchHours', 'prefetch');
 
 my $cache;
 
@@ -58,6 +67,9 @@ sub initPlugin {
 	# apply the keep settings once LMS has settled (players connected, playlists restored)
 	Plugins::PodcastCache::Retention->scheduleAll(60);
 
+	# check the feeds for new episodes, soon and then every prefetchHours
+	Plugins::PodcastCache::Prefetch->start;
+
 	if (main::WEBUI) {
 		require Plugins::PodcastCache::Settings;
 		Plugins::PodcastCache::Settings->new;
@@ -65,6 +77,12 @@ sub initPlugin {
 
 	# podcastcache fetch <url> [title]: download an episode into the cache
 	Slim::Control::Request::addDispatch(['podcastcache', 'fetch', '_url', '_title'], [0, 0, 0, \&_cliFetch]);
+
+	# podcastcache refresh: check all feeds for new episodes now
+	Slim::Control::Request::addDispatch(['podcastcache', 'refresh'], [0, 0, 0, sub {
+		Plugins::PodcastCache::Prefetch->checkNow;
+		$_[0]->setStatusDone;
+	}]);
 
 	Plugins::PodcastCache::Status->info('Started: handling podcast:// playback, cache at ' . $prefs->get('cacheRoot'));
 
@@ -76,6 +94,7 @@ sub initPlugin {
 }
 
 sub shutdownPlugin {
+	Plugins::PodcastCache::Prefetch->stop;
 	Plugins::PodcastCache::Downloader->stop;
 }
 

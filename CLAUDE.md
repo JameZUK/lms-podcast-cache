@@ -60,5 +60,7 @@ that where possible. Everything else is tested on the live server.
   unless there's no other way, and note any such divergence in `DESIGN.md`.
 - Keep plugin HTML templates ASCII: LMS double-encodes anything else (`—` renders as `â`).
   Use `&mdash;`, `&hellip;`. LMS caches compiled templates for an hour; restart to see edits.
+  Don't name hash keys the page reads `last`, `next`, `first`, `size` and the like:
+  Template Toolkit treats them as list methods when the value is empty.
 - Prefer reusing what the built-in already does — notably its 30-day resume-position cache
   (`podcast-$url`) and its RSS parser.

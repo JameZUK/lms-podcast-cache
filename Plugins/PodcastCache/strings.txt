@@ -34,6 +34,12 @@ PLUGIN_PODCASTCACHE_PLAY_WAIT
 PLUGIN_PODCASTCACHE_PLAY_WAIT_DESC
 	EN	When you play an episode that isn't cached yet, it is downloaded first and then played from disk. If the download takes longer than this, the episode streams as before while the download finishes for next time. 0 streams straight away.
 
+PLUGIN_PODCASTCACHE_PREFETCH
+	EN	Automatic downloads
+
+PLUGIN_PODCASTCACHE_PREFETCH_DESC
+	EN	Download the newest episodes of each podcast ahead of time, so they play from disk the first time. It downloads as many as the podcast keeps (below); for "all episodes", the newest 3; for "only the episode playing", none. Episodes are also checked whenever you browse a podcast. Quiet hours stop new background downloads starting, e.g. during a nightly backup; playing an episode still downloads it.
+
 PLUGIN_PODCASTCACHE_DEFAULT_KEEP
 	EN	Episodes to keep
 

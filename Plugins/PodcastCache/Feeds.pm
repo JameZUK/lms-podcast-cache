@@ -50,6 +50,8 @@ sub _remember {
 	my $feedUrl = $http->params->{params}->{url};
 	return unless ref $feed eq 'HASH';
 
+	my @episodes;
+
 	for my $item (@{ $feed->{items} || [] }) {
 		# the parser has already wrapped the url; an episode with a resume position has
 		# 'play' instead of an enclosure
@@ -58,16 +60,20 @@ sub _remember {
 
 		my $type = $item->{enclosure} ? lc($item->{enclosure}->{type} || '') : '';
 
-		$cache->set("podcastcache-ep-$url", {
+		my $episode = {
 			url       => $url,
 			title     => $item->{title} || $item->{name},
 			pubdate   => $item->{pubdate} ? str2time($item->{pubdate}) : undef,
 			feedUrl   => $feedUrl,
 			feedTitle => $feed->{title},
 			ext       => $extForType{$type},
-		}, '90days');
+		};
+
+		$cache->set("podcastcache-ep-$url", $episode, '90days');
+		push @episodes, $episode;
 	}
 
+	Plugins::PodcastCache::Prefetch->queue($feedUrl, \@episodes);
 	Plugins::PodcastCache::Retention->schedule($feedUrl);
 }
 

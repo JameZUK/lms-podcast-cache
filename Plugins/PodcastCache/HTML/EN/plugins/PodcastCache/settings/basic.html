@@ -84,6 +84,17 @@
 				</td>
 			</tr>
 			<tr>
+				<td>New episodes</td>
+				<td>
+				[% IF !status.prefetch.enabled %]
+					<span class="pcc-muted">Not downloaded automatically (off below)</span>
+				[% ELSE %]
+					[% IF status.prefetch.checking %]<span class="pcc-ok">Checking the feeds now</span>[% ELSIF status.prefetch.quiet %]<span class="pcc-warn">Quiet hours</span>[% ELSE %]Downloaded automatically[% END %]
+					&mdash; last check [% status.prefetch.lastCheck || 'not yet' %], next [% status.prefetch.nextCheck || '?' %]
+				[% END %]
+				</td>
+			</tr>
+			<tr>
 				<td>Since LMS started</td>
 				<td>
 					[% status.counts.downloaded %] downloaded,
@@ -138,6 +149,19 @@
 
 	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_PLAY_WAIT" desc="PLUGIN_PODCASTCACHE_PLAY_WAIT_DESC" %]
 		<input type="number" min="0" max="600" class="stdedit" name="pref_playWait" id="playWait" value="[% prefs.pref_playWait | html %]" style="width: 5em"> seconds
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_PREFETCH" desc="PLUGIN_PODCASTCACHE_PREFETCH_DESC" %]
+		<select class="stdedit" name="pref_prefetch" id="prefetch">
+			<option value="1" [% IF prefs.pref_prefetch %]selected[% END %]>Download new episodes automatically</option>
+			<option value="0" [% IF !prefs.pref_prefetch %]selected[% END %]>Only download when played</option>
+		</select>
+		<br>Check the feeds every
+		<input type="number" min="1" max="168" class="stdedit" name="pref_prefetchHours" value="[% prefs.pref_prefetchHours | html %]" style="width: 4em"> hours
+		<br>Don't start downloads between
+		<input type="number" min="0" max="23" class="stdedit" name="pref_quietStart" value="[% prefs.pref_quietStart | html %]" style="width: 4em"> and
+		<input type="number" min="0" max="23" class="stdedit" name="pref_quietEnd" value="[% prefs.pref_quietEnd | html %]" style="width: 4em"> o'clock
+		<span class="pcc-muted">(leave empty for any time)</span>
 	[% END %]
 
 	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_DEFAULT_KEEP" desc="PLUGIN_PODCASTCACHE_DEFAULT_KEEP_DESC" %]

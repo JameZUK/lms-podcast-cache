@@ -154,6 +154,30 @@ Verified 2026-09-27: an uncached episode downloaded (81 MB, about 1 s) and start
 from disk 4 s after pressing play, filed under its feed and date; with `playWait` 0 the next
 one streamed immediately and was cached 2 s later.
 
+## Prefetch
+
+`Prefetch.pm` (2026-09-27) downloads new episodes ahead of time, so they play from disk
+the first time.
+
+- **Every `prefetchHours`** (default 6; first check 2 minutes after start-up) it reads each
+  subscribed feed through the built-in parser, one at a time, as the built-in does.
+- **Whenever a feed is read** (by that timer, or by someone browsing it), `Feeds.pm` hands
+  its episodes to `Prefetch::queue`, which queues the newest ones not yet cached, *behind*
+  anything waiting to play:
+  - keep = N: the newest N, so prefetch and retention agree;
+  - keep = all: the newest 3, not the whole back catalogue;
+  - keep = only the episode playing: none.
+- **Quiet hours** (`quietStart`/`quietEnd`, off by default) stop background downloads being
+  *queued*, e.g. during the file server's nightly backup. Playing an episode still downloads
+  it. A download already running finishes.
+- If the cache isn't writable (the share isn't mounted), a check is skipped with one
+  warning, instead of one error per episode.
+- `podcastcache refresh` on the CLI checks all feeds now, even in quiet hours.
+
+Verified on the LMS host: a refresh queued and downloaded the newest 3 episodes; a second
+found nothing new; with quiet hours covering the current hour, browsing the feed queued
+nothing.
+
 ## Architecture
 
 ```
@@ -170,7 +194,9 @@ Plugins/PodcastCache/
                        JSON status file; core Perl only, tested by tests/downloader.t
   Cache.pm             path layout, sanitisation, sidecar index, prune, mount guard
   Feeds.pm             wraps the built-in parser to remember each episode's feed, title,
-                       date and type, by enclosure url
+                       date and type, by enclosure url; hands them to Prefetch and Retention
+  Prefetch.pm          checks the feeds on a timer and queues new episodes
+  Retention.pm         prunes each feed to its keep setting, protecting what's in use
   Settings.pm          web settings: cache root, default keep, per-feed keep
   Status.pm            settings-page status: health checks, cache contents, recent
                        activity (last 100 events, in memory)

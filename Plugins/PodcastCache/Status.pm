@@ -62,6 +62,7 @@ sub summary {
 		folders        => $exists ? _contents($root) : [],
 		counts         => { %counts },
 		downloads      => Plugins::PodcastCache::Downloader->summary,
+		prefetch       => Plugins::PodcastCache::Prefetch->summary,
 		events         => [ map { { %$_, when => _when($_->{time}) } } @events ],
 	);
 

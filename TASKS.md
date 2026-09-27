@@ -58,8 +58,10 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       show a per-podcast cached count once Cache.pm maps feeds to folders.
 
 ## 4. Play from cache
-- [ ] `ProtocolHandler::scanUrl`: if `Cache::lookup` says complete, play the local file
-      using the mechanism proven in step 0.
+- [x] `ProtocolHandler::scanUrl`: if `Cache::lookup` says complete, play the local file
+      using the mechanism proven in step 0. *(Done 2026-09-27: looks the enclosure url up in
+      Cache.pm's sidecar index, built on first use; verified on the LMS host with the
+      hand-placed test episode.)*
 - [ ] Otherwise fetch, then play the local file.
 - [ ] If the download fails or the cache is unavailable, fall back to streaming as the
       built-in does today.

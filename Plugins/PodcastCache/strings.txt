@@ -28,11 +28,17 @@ PLUGIN_PODCASTCACHE_CACHE_ROOT
 PLUGIN_PODCASTCACHE_CACHE_ROOT_DESC
 	EN	Where downloaded episodes are kept. To keep episodes out of your music library, use a folder whose name starts with a dot (the scanner skips those), or one outside your music folders.
 
+PLUGIN_PODCASTCACHE_PLAY_WAIT
+	EN	Wait for the download
+
+PLUGIN_PODCASTCACHE_PLAY_WAIT_DESC
+	EN	When you play an episode that isn't cached yet, it is downloaded first and then played from disk. If the download takes longer than this, the episode streams as before while the download finishes for next time. 0 streams straight away.
+
 PLUGIN_PODCASTCACHE_DEFAULT_KEEP
 	EN	Episodes to keep
 
 PLUGIN_PODCASTCACHE_DEFAULT_KEEP_DESC
-	EN	How many episodes of each podcast to keep on disk, unless set below. Older episodes are deleted, but never one that is playing. (Applied once downloads are built.)
+	EN	How many episodes of each podcast to keep on disk, unless set below. Older episodes are deleted, but never one that is playing. (Not applied yet: retention is the next step.)
 
 PLUGIN_PODCASTCACHE_FEEDS
 	EN	Per podcast

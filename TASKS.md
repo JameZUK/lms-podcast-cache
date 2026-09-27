@@ -67,12 +67,13 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       using the mechanism proven in step 0. *(Done 2026-09-27: looks the enclosure url up in
       Cache.pm's sidecar index, built on first use; verified on the LMS host with the
       hand-placed test episode.)*
-- [ ] Record feed title, guid and pubdate per enclosure url when the built-in parser reads a
-      feed (wrap `Slim::Plugin::Podcast::Parser::parse`), so downloads land in the right
-      folder with the right identity.
-- [ ] Otherwise fetch, then play the local file.
-- [ ] If the download fails or the cache is unavailable, fall back to streaming as the
-      built-in does today.
+- [x] Record feed title and pubdate per enclosure url when the built-in parser reads a
+      feed (`Feeds.pm` wraps `Slim::Plugin::Podcast::Parser::parse`). LMS drops `<guid>`, so
+      the enclosure url is the identity.
+- [x] Otherwise fetch, then play the local file. *(Done 2026-09-27; see DESIGN.md
+      "Fetch-then-play".)*
+- [x] If the download fails, the cache is unavailable, or it takes longer than `playWait`,
+      fall back to streaming as the built-in does today (the download carries on).
 - [ ] Keep the built-in's `onStop` resume-position behaviour working (it caches
       `podcast-$url` for 30 days — inherited, don't reimplement).
 - [ ] Show `[cached]` / `[downloading N%]` in the browse menu, if it can be done without
@@ -93,6 +94,11 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
 ## 7. Ship
 - [ ] Test on a real hour-long episode end to end on the UPnP test speaker. That is the acceptance
       test: it must play the full hour with no drop.
+- [ ] Install through LMS's own plugin manager from GitHub instead of copying files: add a
+      `repo.xml` (plugin id, version, zip url, sha) and a release zip (e.g. built by a GitHub
+      Action on tag), point LMS at the repo.xml under Settings > Plugins > Additional
+      Repositories, install from there, then remove the manual copy from
+      `/var/lib/squeezeboxserver/Plugins/` so LMS doesn't see two.
 - [ ] Document that the built-in Podcasts plugin must stay enabled (it provides the feeds
       and menus).
 - [ ] Decide the backup question for pruned episodes (DESIGN.md, "Deployment notes").

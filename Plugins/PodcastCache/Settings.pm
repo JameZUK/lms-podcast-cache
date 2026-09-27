@@ -18,7 +18,7 @@ sub page {
 }
 
 sub prefs {
-	return ($prefs, qw(cacheRoot));
+	return ($prefs, qw(cacheRoot playWait));
 }
 
 sub handler {

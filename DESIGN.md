@@ -130,11 +130,29 @@ Two layers, so the hard part can be tested without LMS:
   download, and the partial stays for next time. `podcastcache fetch <url> [title]` on the
   CLI queues one by hand.
 
-**Still missing for fetch-then-play:** at play time the handler only has the enclosure
-url and a title. The feed title, guid and pubdate (for the folder, the identity and
-retention) are known only when the built-in parser reads the feed. Next: record them
-per enclosure url by wrapping `Slim::Plugin::Podcast::Parser::parse`. The same hook serves
-the `[cached]` badges and prefetch.
+### Fetch-then-play
+
+At play time the handler has only the enclosure url and a title. The feed title and pubdate
+(for the folder, the file name and retention) come from **`Feeds.pm`**, which wraps
+`Slim::Plugin::Podcast::Parser::parse`: it calls the original, then records each item's
+feed url and title, title, pubdate and file type, keyed by enclosure url, in LMS's cache
+for 90 days (so it survives restarts). Wrapping rather than copying the parser keeps
+upstream fixes. The same hook will serve the `[cached]` badges and prefetch.
+
+**Episodes are identified by enclosure url, not `<guid>`**: LMS's RSS parsing
+(`Slim::Formats::XML`) drops `<guid>`, and getting it back would mean copying the parser.
+Cache.pm still prefers a guid if one is ever supplied.
+
+When `scanUrl` gets an episode that isn't cached, it queues the download at the front,
+then:
+- **the download finishes within `playWait` seconds** (default 30): play it from disk;
+- **it fails, or takes longer** (a slow connection): stream it as the built-in does, while
+  the download carries on, so it plays from disk next time. `playWait` 0 means "stream now,
+  cache for next time".
+
+Verified 2026-09-27: an uncached episode downloaded (81 MB, about 1 s) and started playing
+from disk 4 s after pressing play, filed under its feed and date; with `playWait` 0 the next
+one streamed immediately and was cached 2 s later.
 
 ## Architecture
 
@@ -151,6 +169,8 @@ Plugins/PodcastCache/
     fetch-episode.pl   standalone: one download with curl, resume/restart/retry loop,
                        JSON status file; core Perl only, tested by tests/downloader.t
   Cache.pm             path layout, sanitisation, sidecar index, prune, mount guard
+  Feeds.pm             wraps the built-in parser to remember each episode's feed, title,
+                       date and type, by enclosure url
   Settings.pm          web settings: cache root, default keep, per-feed keep
   Status.pm            settings-page status: health checks, cache contents, recent
                        activity (last 100 events, in memory)

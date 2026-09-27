@@ -81,7 +81,6 @@
 				[% IF status.downloads.queue.size %]
 					<br><span class="pcc-muted">Queued: [% status.downloads.queue.join('; ') | html %]</span>
 				[% END %]
-				<br><span class="pcc-muted">Not yet automatic: episodes still stream unless already cached.</span>
 				</td>
 			</tr>
 			<tr>
@@ -135,6 +134,10 @@
 
 	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_CACHE_ROOT" desc="PLUGIN_PODCASTCACHE_CACHE_ROOT_DESC" %]
 		<input type="text" class="stdedit" name="pref_cacheRoot" id="cacheRoot" value="[% prefs.pref_cacheRoot | html %]" size="50">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_PLAY_WAIT" desc="PLUGIN_PODCASTCACHE_PLAY_WAIT_DESC" %]
+		<input type="number" min="0" max="600" class="stdedit" name="pref_playWait" id="playWait" value="[% prefs.pref_playWait | html %]" style="width: 5em"> seconds
 	[% END %]
 
 	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_DEFAULT_KEEP" desc="PLUGIN_PODCASTCACHE_DEFAULT_KEEP_DESC" %]

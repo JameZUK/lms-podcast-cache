@@ -16,6 +16,7 @@ use Slim::Utils::Prefs;
 use Slim::Plugin::Podcast::ProtocolHandler;
 use Plugins::PodcastCache::Cache;
 use Plugins::PodcastCache::Downloader;
+use Plugins::PodcastCache::Feeds;
 use Plugins::PodcastCache::ProtocolHandler;
 use Plugins::PodcastCache::Status;
 
@@ -30,10 +31,12 @@ my $prefs = preferences('plugin.podcastcache');
 $prefs->init({
 	defaultKeep => 3,      # a number of newest episodes, 'all', or 'current' (only what's playing)
 	feedKeep    => {},     # feed url => same, overriding defaultKeep
+	playWait    => 30,     # seconds to wait for a download before streaming instead
 });
 
 $prefs->setValidate({ validator => sub { $_[1] =~ m{^/.} } }, 'cacheRoot');
 $prefs->setValidate({ validator => sub { $_[1] =~ /^(?:all|current|[1-9]\d{0,2})$/ } }, 'defaultKeep');
+$prefs->setValidate({ validator => 'intlimit', low => 0, high => 600 }, 'playWait');
 
 my $cache;
 
@@ -47,6 +50,9 @@ sub initPlugin {
 	$prefs->init({ cacheRoot => _defaultCacheRoot() });
 
 	Slim::Player::ProtocolHandlers->registerHandler('podcast', 'Plugins::PodcastCache::ProtocolHandler');
+
+	# learn each episode's feed, title and date as the built-in parser reads feeds
+	Plugins::PodcastCache::Feeds->init;
 
 	if (main::WEBUI) {
 		require Plugins::PodcastCache::Settings;

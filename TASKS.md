@@ -40,9 +40,12 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       Bounded retries with backoff; give up loudly. *(Done 2026-09-27:
       `scripts/fetch-episode.pl`; `tests/downloader.t` runs it against a local server that
       cuts, stalls, changes the file, redirects and errors on purpose.)*
-- [ ] Prove it against the real failing episode — it must produce a complete 85,900,147-byte
+- [x] Prove it against the real failing episode — it must produce a complete 85,900,147-byte
       file despite the mid-download truncation. **This is the whole point of the project;
-      don't move on until it passes.**
+      don't move on until it passes.** *(Passed 2026-09-27 on the LMS host: a bridge-style
+      slow read was cut by the real server at 11,711,953 bytes (curl exit 18); the script
+      resumed it with a `206` and produced all 85,900,147 bytes, byte-identical to a full
+      download, in 5 s. A normal run was also identical.)*
 - [x] Only then wire it into LMS as a non-blocking child process (`Proc::Background`) +
       poll timer. *(Done 2026-09-27: `Downloader.pm`, CLI `podcastcache fetch <url> [title]`,
       progress on the settings page. Verified on the LMS host: an 81 MB episode in 8 s,

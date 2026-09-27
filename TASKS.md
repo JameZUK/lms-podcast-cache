@@ -79,8 +79,11 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       fall back to streaming as the built-in does today (the download carries on).
 - [ ] Keep the built-in's `onStop` resume-position behaviour working (it caches
       `podcast-$url` for 30 days — inherited, don't reimplement).
-- [ ] Show `[cached]` / `[downloading N%]` in the browse menu, if it can be done without
-      copying `Parser.pm` (DESIGN.md open question 3).
+- [x] Show `[cached]` / `[downloading N%]` in the browse menu, if it can be done without
+      copying `Parser.pm` (DESIGN.md open question 3). *(Done 2026-09-27: `Feeds.pm` adds
+      `[cached]`, `[downloading N%]` or `[queued]` to each episode's second line (`line2`),
+      which Material and device UIs show; not the title, which LMS reuses as the track
+      title. The Default web skin doesn't show `line2`.)*
 
 ## 5. Retention
 - [x] Per-feed `keep` override in settings: integer / `all` / `current-only`.

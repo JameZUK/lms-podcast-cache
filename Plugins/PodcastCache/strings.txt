@@ -51,3 +51,12 @@ PLUGIN_PODCASTCACHE_FEEDS
 
 PLUGIN_PODCASTCACHE_FEEDS_DESC
 	EN	Override the number of episodes kept for individual podcasts. These are your subscriptions from the built-in Podcasts plugin.
+
+PLUGIN_PODCASTCACHE_LABEL_CACHED
+	EN	cached
+
+PLUGIN_PODCASTCACHE_LABEL_DOWNLOADING
+	EN	downloading
+
+PLUGIN_PODCASTCACHE_LABEL_QUEUED
+	EN	queued

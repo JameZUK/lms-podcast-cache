@@ -181,6 +181,20 @@ sub _readStatus {
 	return ref $data eq 'HASH' ? $data : undef;
 }
 
+# where an episode is in the queue: { state => 'downloading', pct => N } or
+# { state => 'queued' }, or nothing
+sub stateFor {
+	my ($class, $url) = @_;
+
+	if ($active && $active->{episode}->{url} eq $url) {
+		my $p = $active->{progress};
+		return { state => 'downloading', pct => $p && $p->{expected} ? int(100 * ($p->{bytes} || 0) / $p->{expected}) : undef };
+	}
+
+	return { state => 'queued' } if grep { $_->{episode}->{url} eq $url } @queue;
+	return;
+}
+
 # for the settings page
 sub summary {
 	my $active = $active ? {

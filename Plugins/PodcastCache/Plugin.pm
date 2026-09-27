@@ -109,11 +109,13 @@ sub _cliFetch {
 		return;
 	}
 
-	Plugins::PodcastCache::Downloader->fetch({
-		url       => $url,
-		title     => $request->getParam('_title'),
-		feedTitle => 'Unsorted',
-	});
+	# what the parser recorded about it (feed, title, date), so it's filed and pruned with
+	# the rest of its podcast; 'Unsorted' only if we've never seen it in a feed
+	my $episode = Plugins::PodcastCache::Feeds->episode($url);
+	$episode->{title} = $request->getParam('_title') if $request->getParam('_title');
+	$episode->{feedTitle} ||= 'Unsorted';
+
+	Plugins::PodcastCache::Downloader->fetch($episode);
 
 	$request->setStatusDone;
 }

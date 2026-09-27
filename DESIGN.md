@@ -379,8 +379,7 @@ in the local, gitignored `ACCESS.md`. What matters for the design:
 
 1. Does curl exit non-zero on the silent truncation? (Wrapper compares against
    `Content-Length` regardless.)
-2. Can the `[cached]` menu badges be done without copying `Parser.pm`?
-3. Background prefetch schedule — on feed refresh, on a timer, or both? And does it respect
+2. Background prefetch schedule — on feed refresh, on a timer, or both? And does it respect
    a quiet-hours window so it doesn't collide with the file server's nightly backup?
 
 ### Resolved
@@ -390,6 +389,8 @@ in the local, gitignored `ACCESS.md`. What matters for the design:
 - *Fork or subclass?* Subclass the protocol handler only (2026-09-27).
 - *Replace the built-in plugin or coexist?* Coexist — the built-in keeps the feeds and
   menus, and we only replace playback (2026-09-27).
+- *Can the `[cached]` menu badges be done without copying `Parser.pm`?* Yes: the parser
+  wrapper in `Feeds.pm` appends them to `line2` (2026-09-27).
 - *How is a cached episode handed to the File handler, and does it touch the library?* Via
   `currentTrackHandler` and a `File` subclass; no library row, because the track stays a
   `RemoteTrack` (spike, 2026-09-27 — see "Play path").

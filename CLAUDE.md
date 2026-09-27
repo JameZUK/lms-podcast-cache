@@ -35,9 +35,11 @@ The short version:
 - **No SSH to the LMS host** — go through the hypervisor's guest agent (see `ACCESS.md`).
   Quoting through three shells breaks constantly; base64 a script in for anything
   non-trivial.
-- Deploy the plugin to `/var/lib/squeezeboxserver/Plugins/PodcastCache/`. **Not**
-  `cache/InstalledPlugins/` — LMS deletes unknown plugins from there on restart. LMS restart
-  to reload (`systemctl restart lyrionmusicserver`).
+- **The plugin is installed through LMS's plugin manager** from this repo's releases (see
+  "Releasing"), into `cache/InstalledPlugins/Plugins/PodcastCache/`. For a quick test of
+  unreleased code, copy files over that installed copy and restart LMS
+  (`systemctl restart lyrionmusicserver`); the next release replaces them. Don't also put a
+  copy in `/var/lib/squeezeboxserver/Plugins/`: LMS would see two plugins with one name.
 - LMS CLI on port 9090; player IDs URL-encoded (the players are listed in `ACCESS.md`).
 - Cache root default `<first music folder>/.podcast-cache` — hidden so the library scan
   skips it — on an **autofs NFS automount** that can be absent. Guard on the mountpoint
@@ -46,6 +48,15 @@ The short version:
 
 Don't commit anything pulled off the live hosts (prefs, logs, pcaps, feed data) — the
 `.gitignore` covers the obvious cases, but check before adding files.
+
+## Releasing
+
+Set the version in `Plugins/PodcastCache/install.xml`, commit, then tag and push `vX.Y.Z`.
+The release workflow runs the tests, builds `PodcastCache-X.Y.Z.zip` and `repo.xml`
+(`tools/build-release.sh`, which also stamps the version into the zip's `install.xml`),
+and publishes a GitHub release. LMS reads
+`https://github.com/JameZUK/lms-podcast-cache/releases/latest/download/repo.xml` and offers
+the update. `tools/build-release.sh X.Y.Z /tmp/out` builds the same thing locally.
 
 ## Tests
 

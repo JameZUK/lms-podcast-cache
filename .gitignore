@@ -44,3 +44,6 @@ podcasts/
 *.swp
 *~
 .DS_Store
+
+# Release builds (tools/build-release.sh)
+dist/

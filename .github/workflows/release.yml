@@ -1,0 +1,34 @@
+# On a vX.Y.Z tag: run the tests, build the plugin zip and repo.xml, and publish them as
+# a GitHub release. LMS installs and updates the plugin from
+#   https://github.com/JameZUK/lms-podcast-cache/releases/latest/download/repo.xml
+#
+# Only the tag name reaches the scripts, through the GITHUB_REF_NAME environment variable
+# (never ${{ }} interpolation), and build-release.sh rejects anything but X.Y.Z.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tests
+        run: prove -I. tests/
+
+      - name: Build
+        run: tools/build-release.sh "${GITHUB_REF_NAME#v}" dist
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/repo.xml \
+            --title "Podcast Cache $GITHUB_REF_NAME" --generate-notes

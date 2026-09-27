@@ -106,7 +106,8 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       `repo.xml` (plugin id, version, zip url, sha) and a release zip (e.g. built by a GitHub
       Action on tag), point LMS at the repo.xml under Settings > Plugins > Additional
       Repositories, install from there, then remove the manual copy from
-      `/var/lib/squeezeboxserver/Plugins/` so LMS doesn't see two.
+      `/var/lib/squeezeboxserver/Plugins/` so LMS doesn't see two. *(Release pipeline done:
+      `tools/build-release.sh`, `.github/workflows/release.yml`, first release v0.1.0.)*
 - [ ] Document that the built-in Podcasts plugin must stay enabled (it provides the feeds
       and menus).
 - [ ] Decide the backup question for pruned episodes (DESIGN.md, "Deployment notes").

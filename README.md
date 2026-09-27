@@ -55,11 +55,28 @@ every feed at once.
 - Leaves the built-in plugin's feeds, menus and resume positions alone: it only replaces
   how an episode is played.
 
+## Install
+
+Needs Lyrion Music Server 9 or later, with the built-in **Podcasts** plugin enabled, and
+`curl` on the server.
+
+1. In LMS, go to **Settings > Plugins**, and under **Additional Repositories** add:
+   ```
+   https://github.com/JameZUK/lms-podcast-cache/releases/latest/download/repo.xml
+   ```
+2. Apply. **Podcast Cache** appears in the list; tick it, apply, and restart LMS when asked.
+3. Open its **Settings** from the plugin list: check the status panel, choose where to cache
+   (by default a hidden `.podcast-cache` folder in your music folder, which the library scan
+   skips) and how many episodes of each podcast to keep.
+
+LMS offers updates as new versions are released.
+
 ## Status
 
-**In development.** Playing a cached episode from disk works; `Cache.pm` (the on-disk cache)
-is written and tested; the downloader is next. See `DESIGN.md` for the architecture and
-`TASKS.md` for the build order and progress.
+**Working, pre-1.0.** Downloading (with resume), playing from disk, fetch-then-play with a
+streaming fallback, prefetch of new episodes, and per-podcast retention all work. Still to
+come: `[cached]` labels in the podcast menus. See `DESIGN.md` for the architecture and
+`TASKS.md` for progress.
 
 ## Layout
 
@@ -72,5 +89,7 @@ is written and tested; the downloader is next. See `DESIGN.md` for the architect
 | `reference/PodcastExt/` | A third-party extension — the clean subclass pattern, for contrast |
 | `reference/stream-idle-test.py` | The reproducer that found the root cause |
 | `Plugins/PodcastCache/` | The plugin itself |
+| `tools/build-release.sh` | Builds the plugin zip and `repo.xml` for a release |
+| `.github/workflows/release.yml` | On a `vX.Y.Z` tag: tests, build, GitHub release |
 | `tests/` | Tests for the parts that don't need LMS: `prove -I. tests/` |
 | `ACCESS.md` | How to reach the test installation — **gitignored, local only** |

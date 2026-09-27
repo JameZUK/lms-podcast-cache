@@ -67,6 +67,8 @@ sub _remember {
 			ext       => $extForType{$type},
 		}, '90days');
 	}
+
+	Plugins::PodcastCache::Retention->schedule($feedUrl);
 }
 
 # What we know about an episode, by enclosure url; at least { url }.

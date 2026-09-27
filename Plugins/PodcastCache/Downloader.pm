@@ -141,6 +141,9 @@ sub _poll {
 			$title, ($status->{bytes} || 0) / 1024**2, $secs, $extra ? "; $extra" : ''));
 
 		_finish($job, $job->{path});
+
+		# a new episode may push an old one past the feed's limit
+		Plugins::PodcastCache::Retention->schedule($job->{episode}->{feedUrl});
 	}
 	else {
 		my $error = $status ? ($status->{error} || 'failed') : 'the download process ended without a status';

@@ -83,9 +83,12 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       copying `Parser.pm` (DESIGN.md open question 3).
 
 ## 5. Retention
-- [ ] Per-feed `keep` override in settings: integer / `all` / `current-only`.
-- [ ] Prune on feed refresh and after each successful download.
-- [ ] Never prune what's playing or an active `.part`.
+- [x] Per-feed `keep` override in settings: integer / `all` / `current-only`.
+- [x] Prune on feed refresh and after each successful download (also on stop, after saving
+      the settings, and at start-up).
+- [x] Never prune what's playing or an active `.part` (also: anything queued, or
+      part-listened). *(Done 2026-09-27: `Retention.pm`; verified on the LMS host, see
+      DESIGN.md "Retention".)*
 
 ## 6. Prefetch
 - [ ] On feed refresh, queue the newest N that aren't cached.

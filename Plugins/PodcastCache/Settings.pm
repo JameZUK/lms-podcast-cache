@@ -56,6 +56,9 @@ sub handler {
 		}
 
 		$prefs->set(feedKeep => \%feedKeep);
+
+		# apply the new limits
+		Plugins::PodcastCache::Retention->scheduleAll(1);
 	}
 
 	my $default = $prefs->get('defaultKeep');

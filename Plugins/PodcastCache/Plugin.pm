@@ -18,6 +18,7 @@ use Plugins::PodcastCache::Cache;
 use Plugins::PodcastCache::Downloader;
 use Plugins::PodcastCache::Feeds;
 use Plugins::PodcastCache::ProtocolHandler;
+use Plugins::PodcastCache::Retention;
 use Plugins::PodcastCache::Status;
 
 my $log = Slim::Utils::Log->addLogCategory({
@@ -53,6 +54,9 @@ sub initPlugin {
 
 	# learn each episode's feed, title and date as the built-in parser reads feeds
 	Plugins::PodcastCache::Feeds->init;
+
+	# apply the keep settings once LMS has settled (players connected, playlists restored)
+	Plugins::PodcastCache::Retention->scheduleAll(60);
 
 	if (main::WEBUI) {
 		require Plugins::PodcastCache::Settings;

@@ -38,7 +38,7 @@ PLUGIN_PODCASTCACHE_DEFAULT_KEEP
 	EN	Episodes to keep
 
 PLUGIN_PODCASTCACHE_DEFAULT_KEEP_DESC
-	EN	How many episodes of each podcast to keep on disk, unless set below. Older episodes are deleted, but never one that is playing. (Not applied yet: retention is the next step.)
+	EN	How many episodes of each podcast to keep on disk, unless set below. Older episodes are deleted when a new one arrives, when a feed is read, or when you stop playing, but never one in a player's playlist, or one you're part-way through.
 
 PLUGIN_PODCASTCACHE_FEEDS
 	EN	Per podcast

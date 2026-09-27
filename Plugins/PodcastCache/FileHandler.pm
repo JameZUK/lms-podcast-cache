@@ -19,7 +19,16 @@ sub pathFromFileURL {
 sub getNextTrack { shift; Plugins::PodcastCache::ProtocolHandler->getNextTrack(@_) }
 
 # save resume position, update recently played
-sub onStop   { shift; Plugins::PodcastCache::ProtocolHandler->onStop(@_) }
+sub onStop {
+	my ($class, $song) = @_;
+
+	Plugins::PodcastCache::ProtocolHandler->onStop($song);
+
+	# with "keep only the episode playing", this is when it may go
+	my ($httpUrl) = Slim::Plugin::Podcast::Plugin::unwrapUrl($song->currentTrack->url);
+	my $entry = Plugins::PodcastCache::Plugin::cache()->lookup($httpUrl);
+	Plugins::PodcastCache::Retention->schedule($entry->{feedUrl}) if $entry;
+}
 sub onStream { shift; Plugins::PodcastCache::ProtocolHandler->onStream(@_) }
 
 1;

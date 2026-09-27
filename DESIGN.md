@@ -299,10 +299,27 @@ oldest beyond N **by pubdate**, and must never delete:
 
 `Cache::prune($feedUrl, $keep, $protect)` takes a callback that returns true for any
 episode to keep regardless, and only considers complete episodes; partial downloads belong
-to the downloader. The caller decides what to protect (step 5). Still to decide: whether
-that includes episodes with a saved resume position. The built-in drops those after 30
-days anyway. Also protect an episode that has just been downloaded *in order to play it*,
-or `current`-only retention could delete it before playback starts.
+to the downloader.
+
+`Retention.pm` (2026-09-27) supplies the callback. **Never deleted:**
+- a player's **current episode while playing or paused**, and **anything queued after
+  it**. That also covers an episode just downloaded in order to play it, since it's already
+  in the playlist;
+- an episode with a **saved resume position**, i.e. part-listened (decided: yes). The
+  built-in keeps positions for 30 days, so the protection lapses with them.
+
+Episodes *earlier* in a playlist, or a current one that has been **stopped**, are not
+protected. LMS keeps them in the playlist, and otherwise "keep only the episode playing"
+could never delete the one you just finished.
+
+**When it runs** (each a few seconds later, so the player's state has settled): after a
+download completes, when the built-in parser reads the feed, when playback of a cached
+episode stops, after the keep settings are saved, and a minute after start-up.
+
+Verified on the LMS host: "keep newest 1" deleted the older of two episodes; under
+"keep only the episode playing", the playing episode survived, a stop at 20 s (which
+saves a resume position) kept it, and a stop at 5 s (which doesn't) deleted it within
+10 s. An emptied podcast folder is removed.
 
 ## Deployment notes
 

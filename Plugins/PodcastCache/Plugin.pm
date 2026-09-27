@@ -55,6 +55,9 @@ $prefs->setValidate({ validator => 'intlimit', low => 0, high => 50 }, 'defaultF
 $prefs->setChange(sub { Plugins::PodcastCache::Downloader->setPreset($_[1]) }, 'politeness');
 $prefs->setChange(sub { Plugins::PodcastCache::Downloader->dropUnwanted }, 'feedBackfill', 'feedKeep', 'defaultKeep');
 
+# act on changed download settings now, not at the next scheduled check
+$prefs->setChange(sub { Plugins::PodcastCache::Prefetch->soon }, 'feedBackfill', 'feedKeep', 'defaultKeep', 'feedFirst', 'defaultFirst');
+
 $prefs->setChange(sub { Plugins::PodcastCache::Prefetch->start }, 'prefetchHours', 'prefetch');
 
 my $cache;

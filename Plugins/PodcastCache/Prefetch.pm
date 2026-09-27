@@ -38,6 +38,12 @@ sub start {
 	$class->_schedule(FIRST_CHECK);
 }
 
+# check the feeds shortly, e.g. because the download settings changed
+sub soon {
+	my $class = shift;
+	$class->_schedule(10);
+}
+
 sub stop {
 	my $class = shift;
 	Slim::Utils::Timers::killTimers($class, \&_check);
@@ -129,7 +135,8 @@ sub queue {
 		allCount => ALL_COUNT,
 	);
 
-	my @missing = grep { !$cache->completePath($_->[1]->{url}) } @planned;
+	# not cached yet, and not known to be gone from the server
+	my @missing = grep { !$cache->completePath($_->[1]->{url}) && !Plugins::PodcastCache::Downloader->isGone($_->[1]->{url}) } @planned;
 	return unless @missing;
 
 	return unless $cache->writable->{ok};    # _check reports this; don't repeat it per feed

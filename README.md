@@ -79,6 +79,8 @@ background download to do so (which then resumes where it left off). Background 
   doesn't say;
 - a server that refuses us twice (HTTP 403) is left alone for a day;
 - a server that suddenly gets much slower than usual is treated as a hint to slow down;
+- an episode whose file has gone from the server (a dead link, common in old back
+  catalogues) is skipped for a month, and isn't held against the server;
 - background downloads wait while live streams are using a real share of your
   connection. The plugin measures your connection's speed, so on a fast line this never
   gets in the way.

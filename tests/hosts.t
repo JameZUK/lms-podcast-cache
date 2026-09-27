@@ -95,6 +95,16 @@ subtest 'a download much slower than usual lengthens the gap' => sub {
 	unlike $h->summary->[1]->{reason} // '', qr/slower/, 'small files are too noisy to judge';
 };
 
+subtest 'a missing file (404) is not held against the server' => sub {
+	my $h = fresh();
+	$h->finished('a.example', code => 404) for 1 .. 10;
+	is $h->coolingUntil('a.example'), 0, 'no cooldown after ten dead links';
+	is $h->state->{hosts}->{'a.example'}->{gap}, 120, 'gap unchanged';
+	is $h->summary->[0]->{failed}, 10, 'but they are counted';
+	$h->finished('a.example', code => 410);
+	is $h->coolingUntil('a.example'), 0, '410 too';
+};
+
 subtest 'hosts are independent' => sub {
 	my $h = fresh();
 	$h->finished('a.example', code => 429);

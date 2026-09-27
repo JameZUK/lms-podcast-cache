@@ -192,7 +192,9 @@ hundreds of files, and servers do push back.
 3. **back catalogue**: everything else, newest first.
 
 The back catalogue is only offered with "keep all episodes": otherwise retention would
-delete what it downloaded. Turning it off drops its queued jobs.
+delete what it downloaded. Turning it off drops its queued jobs. Changing any of these
+settings (keep, back catalogue, start of series) schedules a feed check 10 seconds later,
+so it takes effect at once rather than at the next 6-hourly check.
 
 **Per-server politeness** (`Hosts.pm`, state kept in LMS's cache so it survives restarts):
 - An adaptive **gap between background downloads**, per server, like TCP congestion
@@ -203,6 +205,10 @@ delete what it downloaded. Turning it off drops its queued jobs.
   `Retry-After` (seconds or an HTTP date). The server cools down for exactly that long, or
   1 min, 5, 15, 1 h, 6 h, 24 h as it repeats. The job is re-queued (up to 5 times).
 - **403 / 401 twice**: probably blocked; 24 h.
+- **404 / 410 / 451**: that file is gone, which says nothing about the server, so it isn't
+  held against it (found on a real back catalogue: its oldest episodes are dead links).
+  The episode is remembered as gone for 30 days, so feed checks skip it; its leftover
+  sidecar is removed; it's logged as a warning, not an error. Pressing play still tries.
 - **Three network failures in a row**: cool down.
 - A job is judged by its enclosure host *and* the host it last redirected to (the CDN),
   since either may be the one throttling.

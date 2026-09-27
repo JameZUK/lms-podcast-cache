@@ -12,7 +12,8 @@ package Plugins::PodcastCache::Hosts;
 #  - HTTP 403 / 401 twice in a row: probably blocked. Leave the host alone for 24 h.
 #  - a download much slower than this host's norm: a soft signal; lengthen the gap.
 #  - network failures: lengthen the gap; back off after three in a row.
-# A clean download clears the streak.
+# A clean download clears the streak. A missing file (404, 410, 451) is not pushback: an
+# old episode that's gone says nothing about the server, so it's only counted.
 #
 # It also keeps an estimate of the connection's download capacity (the fastest recent
 # downloads), which Downloader uses to decide whether live streams leave room for
@@ -36,6 +37,7 @@ my @BACKOFF = (60, 300, 900, 3600, 6 * 3600, 24 * 3600);
 
 my %THROTTLE = map { $_ => 1 } (420, 429, 503, 509);
 my %REFUSED  = map { $_ => 1 } (401, 403);
+my %GONE     = map { $_ => 1 } (404, 410, 451);
 
 sub new {
 	my ($class, %args) = @_;
@@ -141,6 +143,8 @@ sub finished {
 
 	$h->{failed}++;
 	my $code = $r{code} || 0;
+
+	return if $GONE{$code};    # that file is missing; the server is fine
 
 	if ($THROTTLE{$code}) {
 		$h->{streak}++;

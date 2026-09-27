@@ -21,6 +21,8 @@ package Plugins::PodcastCache::Downloader;
 #    and while live streams are using a meaningful share of the connection.
 #  - A background job the server throttles goes back in the queue (a few times); other
 #    failures drop it until the next feed check, which re-queues it and resumes the partial.
+#  - An episode whose file is gone (404, 410, 451) is remembered for GONE_DAYS, so feed
+#    checks skip it; pressing play still tries it.
 
 use strict;
 
@@ -44,6 +46,9 @@ use constant POLL_SECS      => 1;
 use constant BUSY_RECHECK   => 60;     # while streams are using the connection
 use constant STREAM_SHARE   => 0.2;    # background waits if streams use more than this share
 use constant MAX_THROTTLES  => 5;      # re-queues of one job after the server throttles it
+use constant GONE_DAYS      => 30;     # skip an episode whose file has gone for this long
+
+my %GONE = map { $_ => 1 } (404, 410, 451);
 
 my $log      = logger('plugin.podcastcache');
 my $prefs    = preferences('plugin.podcastcache');
@@ -249,6 +254,9 @@ sub _poll {
 
 	$active = undef;
 
+	# the process has ended and we've read how: the status file has served its purpose
+	unlink "$job->{path}.status";
+
 	my $cache = Plugins::PodcastCache::Plugin::cache();
 	my $title = _title($job);
 	my %validators = map { $_ => $status->{$_} } grep { $status && defined $status->{$_} } qw(etag lastModified);
@@ -273,7 +281,6 @@ sub _poll {
 	elsif ($status && $status->{state} eq 'complete') {
 		$cache->record($job->{path}, $job->{episode}, state => 'complete',
 			expectedSize => $status->{expected} || -s $job->{path}, %validators);
-		unlink "$job->{path}.status";
 
 		my $secs = $status->{finishedAt} - $status->{startedAt};
 		hosts()->finished($_, ok => 1, bytes => $status->{bytes}, secs => $secs) for _hostsFor($job);
@@ -298,6 +305,24 @@ sub _poll {
 		hosts()->finished($_, code => ($status && $status->{httpCode}) || 0,
 			retryAfter => $status && $status->{retryAfter}) for _hostsFor($job);
 		_saveHosts();
+
+		my $code = $status && $status->{httpCode} || 0;
+
+		if ($GONE{$code}) {
+			# the file isn't there: nothing to resume, and no point asking again for a while
+			$lmsCache->set('podcastcache-gone-' . $job->{episode}->{url}, time(), GONE_DAYS . 'days');
+			my $entry = $cache->lookup($job->{key});
+			$cache->remove($entry) if $entry;
+
+			Plugins::PodcastCache::Status->warn(sprintf('Skipping "%s": no longer on the server (HTTP %s); will look again in %d days',
+				$title, $code, GONE_DAYS));
+			# tell anyone waiting (a play request then streams, and gets the same answer)
+			for my $cb (@{ $job->{callbacks} }) {
+				eval { $cb->(undef, "no longer on the server (HTTP $code)") };
+				$log->error("Download callback failed: $@") if $@;
+			}
+			return _next();
+		}
 
 		# keep what we got, and the validators, so the next attempt can resume
 		my %partial = (state => 'partial', %validators);
@@ -381,6 +406,12 @@ sub setPreset {
 	hosts()->preset($preset);
 	_saveHosts();
 	_next();
+}
+
+# is this episode's file known to be gone from its server?
+sub isGone {
+	my ($class, $url) = @_;
+	return $lmsCache->get("podcastcache-gone-$url") ? 1 : 0;
 }
 
 # where an episode is in the queue: { state => 'downloading', pct => N } or

@@ -4,11 +4,13 @@ package Plugins::PodcastCache::Prefetch;
 #
 # Every prefetchHours, reads each subscribed feed through the built-in parser, one at a
 # time. Whenever a feed is read (by this timer, or by someone browsing it), Feeds.pm calls
-# queue(), which queues the newest episodes that aren't cached yet, behind anything
-# waiting to play:
+# queue(), which queues what isn't cached yet, behind anything waiting to play:
 #   keep = N         -> the newest N (retention then keeps the same N)
-#   keep = 'all'     -> the newest ALL_COUNT, not the whole back catalogue
+#   keep = 'all'     -> the newest ALL_COUNT; and with "download the back catalogue" on,
+#                       then the first few episodes (start of series), then all the rest,
+#                       newest first
 #   keep = 'current' -> nothing
+# Downloader spaces these out per server (Hosts.pm) and puts anything being played first.
 # Nothing is queued during the optional quiet hours; playing an episode still downloads it.
 
 use strict;
@@ -18,6 +20,8 @@ use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 use Slim::Utils::Timers;
 
+use Plugins::PodcastCache::Downloader;
+use Plugins::PodcastCache::Plan;
 use Plugins::PodcastCache::Status;
 
 use constant ALL_COUNT   => 3;
@@ -113,22 +117,37 @@ sub queue {
 	return unless $prefs->get('prefetch') || ($checking || '') eq 'force';
 	return if $class->quiet && ($checking || '') ne 'force';
 
-	my $keep  = Plugins::PodcastCache::Plugin::keepFor($feedUrl);
-	my $count = $keep =~ /^\d+$/ ? $keep : $keep eq 'all' ? ALL_COUNT : 0;
-	return unless $count;
+	my $keep = Plugins::PodcastCache::Plugin::keepFor($feedUrl);
+	return if $keep eq 'current';
 
 	my $cache = Plugins::PodcastCache::Plugin::cache();
 
-	my @newest = grep { defined } (sort { ($b->{pubdate} || 0) <=> ($a->{pubdate} || 0) } @$episodes)[0 .. $count - 1];
-	my @missing = grep { !$cache->completePath($_->{url}) } @newest;
+	my @planned = Plugins::PodcastCache::Plan::plan($episodes,
+		keep     => $keep,
+		backfill => Plugins::PodcastCache::Plugin::backfillFor($feedUrl),
+		first    => Plugins::PodcastCache::Plugin::firstFor($feedUrl),
+		allCount => ALL_COUNT,
+	);
+
+	my @missing = grep { !$cache->completePath($_->[1]->{url}) } @planned;
 	return unless @missing;
 
 	return unless $cache->writable->{ok};    # _check reports this; don't repeat it per feed
 
-	Plugins::PodcastCache::Downloader->fetch($_) for @missing;
+	my %count;
+	for (@missing) {
+		my ($priority, $ep, $order) = @$_;
+		$count{$priority}++;
+		Plugins::PodcastCache::Downloader->fetch($ep, priority => $priority, order => $order);
+	}
 
-	Plugins::PodcastCache::Status->info(sprintf('Queued %d new episode%s of "%s"',
-		scalar @missing, @missing == 1 ? '' : 's', $missing[0]->{feedTitle} || $feedUrl));
+	my $newest = $count{ Plugins::PodcastCache::Plan::NEWEST() } || 0;
+	my $older  = @missing - $newest;
+	Plugins::PodcastCache::Status->info(sprintf('Queued %s of "%s"',
+		join(' and ', grep { $_ }
+			($newest ? sprintf('%d new episode%s', $newest, $newest == 1 ? '' : 's') : ''),
+			($older ? sprintf('%d from the back catalogue', $older) : '')),
+		$missing[0]->[1]->{feedTitle} || $feedUrl));
 }
 
 sub quiet {

@@ -7,7 +7,7 @@
   </targetApplication>
   <id>542fdb81-fd1c-4946-ba70-cf7518be80e1</id>
   <defaultState>enabled</defaultState>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <name>PLUGIN_PODCASTCACHE</name>
   <description>PLUGIN_PODCASTCACHE_DESC</description>
   <optionsURL>plugins/PodcastCache/settings/basic.html</optionsURL>

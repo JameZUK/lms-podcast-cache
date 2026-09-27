@@ -61,8 +61,11 @@ the update. `tools/build-release.sh X.Y.Z /tmp/out` builds the same thing locall
 ## Tests
 
 `prove -I. tests/` from the repo root (on Arch, `prove` is `/usr/bin/core_perl/prove`). Tests
-cover the modules that don't need LMS (`Cache.pm` so far); keep new logic in modules like
-that where possible. Everything else is tested on the live server.
+cover the modules that don't need LMS (`Cache.pm`, `Plan.pm`, `Hosts.pm`) and the download
+script (`tests/downloader.t`, against a local server that misbehaves on purpose); keep new
+logic in modules like that where possible. The LMS glue is tested on the live server; to
+exercise throttling there, run a fake server on the LMS host rather than hitting a real
+podcast host.
 
 ## Conventions
 

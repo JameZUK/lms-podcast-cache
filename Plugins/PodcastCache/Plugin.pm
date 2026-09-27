@@ -38,6 +38,10 @@ $prefs->init({
 	prefetchHours => 6,    # how often to check the feeds
 	quietStart  => '',     # hours (0-23) when no background downloads start; '' = off
 	quietEnd    => '',
+	politeness  => 'normal',  # gentle | normal | fast: how closely background downloads may follow each other
+	defaultFirst => 3,     # with the back catalogue on: download the first N episodes early
+	feedBackfill => {},    # feed url => 1: download the back catalogue (needs keep = all)
+	feedFirst   => {},     # feed url => N, overriding defaultFirst
 });
 
 $prefs->setValidate({ validator => sub { $_[1] =~ m{^/.} } }, 'cacheRoot');
@@ -45,6 +49,11 @@ $prefs->setValidate({ validator => sub { $_[1] =~ /^(?:all|current|[1-9]\d{0,2})
 $prefs->setValidate({ validator => 'intlimit', low => 0, high => 600 }, 'playWait');
 $prefs->setValidate({ validator => 'intlimit', low => 1, high => 168 }, 'prefetchHours');
 $prefs->setValidate({ validator => sub { $_[1] =~ /^(?:|[01]?\d|2[0-3])$/ } }, 'quietStart', 'quietEnd');
+$prefs->setValidate({ validator => sub { $_[1] =~ /^(?:gentle|normal|fast)$/ } }, 'politeness');
+$prefs->setValidate({ validator => 'intlimit', low => 0, high => 50 }, 'defaultFirst');
+
+$prefs->setChange(sub { Plugins::PodcastCache::Downloader->setPreset($_[1]) }, 'politeness');
+$prefs->setChange(sub { Plugins::PodcastCache::Downloader->dropUnwanted }, 'feedBackfill', 'feedKeep', 'defaultKeep');
 
 $prefs->setChange(sub { Plugins::PodcastCache::Prefetch->start }, 'prefetchHours', 'prefetch');
 
@@ -77,6 +86,15 @@ sub initPlugin {
 
 	# podcastcache fetch <url> [title]: download an episode into the cache
 	Slim::Control::Request::addDispatch(['podcastcache', 'fetch', '_url', '_title'], [0, 0, 0, \&_cliFetch]);
+
+	# podcastcache resethost <host>: forget a server's backoff and statistics
+	Slim::Control::Request::addDispatch(['podcastcache', 'resethost', '_host'], [0, 0, 0, sub {
+		my $request = shift;
+		my $host = $request->getParam('_host') or return $request->setStatusBadParams;
+		Plugins::PodcastCache::Status->info("Reset what we knew about $host")
+			if Plugins::PodcastCache::Downloader->resetHost($host);
+		$request->setStatusDone;
+	}]);
 
 	# podcastcache refresh: check all feeds for new episodes now
 	Slim::Control::Request::addDispatch(['podcastcache', 'refresh'], [0, 0, 0, sub {
@@ -141,6 +159,19 @@ sub keepFor {
 	my $feedUrl = shift;
 	my $keep = ($prefs->get('feedKeep') || {})->{$feedUrl};
 	return defined $keep ? $keep : $prefs->get('defaultKeep');
+}
+
+# download this feed's back catalogue? Only while it keeps everything.
+sub backfillFor {
+	my $feedUrl = shift;
+	return keepFor($feedUrl) eq 'all' && ($prefs->get('feedBackfill') || {})->{$feedUrl} ? 1 : 0;
+}
+
+# how many of the first episodes to download early, with the back catalogue on
+sub firstFor {
+	my $feedUrl = shift;
+	my $first = ($prefs->get('feedFirst') || {})->{$feedUrl};
+	return defined $first ? $first : $prefs->get('defaultFirst');
 }
 
 sub keepLabel {

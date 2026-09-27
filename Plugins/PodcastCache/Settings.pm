@@ -18,7 +18,7 @@ sub page {
 }
 
 sub prefs {
-	return ($prefs, qw(cacheRoot playWait prefetch prefetchHours quietStart quietEnd));
+	return ($prefs, qw(cacheRoot playWait prefetch prefetchHours quietStart quietEnd politeness defaultFirst));
 }
 
 sub handler {
@@ -35,9 +35,21 @@ sub handler {
 		}
 
 		# fields are numbered, with the feed url in a hidden field, as urls make poor names
-		my %feedKeep = %{ $prefs->get('feedKeep') || {} };
+		my %feedKeep     = %{ $prefs->get('feedKeep') || {} };
+		my %feedBackfill = %{ $prefs->get('feedBackfill') || {} };
+		my %feedFirst    = %{ $prefs->get('feedFirst') || {} };
 
 		for (my $i = 0; defined(my $url = $params->{"feed_url_$i"}); $i++) {
+			$params->{"feed_backfill_$i"} ? ($feedBackfill{$url} = 1) : delete $feedBackfill{$url};
+
+			my $first = $params->{"feed_first_$i"};
+			if (defined $first && $first =~ /^\s*(\d{1,2})\s*$/) {
+				$feedFirst{$url} = $1;
+			}
+			else {
+				delete $feedFirst{$url};    # empty: use the default
+			}
+
 			my $mode = $params->{"feed_mode_$i"} || 'default';
 
 			if ($mode eq 'default') {
@@ -56,6 +68,8 @@ sub handler {
 		}
 
 		$prefs->set(feedKeep => \%feedKeep);
+		$prefs->set(feedBackfill => \%feedBackfill);
+		$prefs->set(feedFirst => \%feedFirst);
 
 		# apply the new limits
 		Plugins::PodcastCache::Retention->scheduleAll(1);
@@ -63,6 +77,8 @@ sub handler {
 
 	my $default = $prefs->get('defaultKeep');
 	my $feedKeep = $prefs->get('feedKeep') || {};
+	my $feedBackfill = $prefs->get('feedBackfill') || {};
+	my $feedFirst = $prefs->get('feedFirst') || {};
 
 	$params->{defaultKeep}  = _keepForForm($default);
 	$params->{defaultLabel} = Plugins::PodcastCache::Plugin::keepLabel($default);
@@ -70,8 +86,10 @@ sub handler {
 	$params->{feeds} = [ map {
 		my $keep = $feedKeep->{ $_->{value} };
 		{
-			name => $_->{name},
-			url  => $_->{value},
+			name     => $_->{name},
+			url      => $_->{value},
+			backfill => $feedBackfill->{ $_->{value} } ? 1 : 0,
+			first    => $feedFirst->{ $_->{value} } // '',
 			%{ defined $keep ? _keepForForm($keep) : { mode => 'default', n => $default =~ /^\d+$/ ? $default : 3 } },
 		};
 	} @{ preferences('plugin.podcast')->get('feeds') || [] } ];

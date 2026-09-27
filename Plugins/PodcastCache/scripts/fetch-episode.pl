@@ -7,9 +7,13 @@
 #                    [--attempts N] [--backoff SECS] [--stall-time SECS] [--curl PATH]
 #
 # Downloads to PATH.part with curl and renames it to PATH only once its size matches what
-# the server said. If the connection closes early (curl exit 18), stalls, or fails, it
-# resumes with Range + If-Range, so a resumed download is only ever joined to the same
-# version of the file. If the file changed upstream (exit 33), or there is nothing safe to
+# the server said. If the server asks us to slow down (HTTP 429, 503, 420, 509), it stops at
+# once and reports "throttled", with the server's Retry-After, instead of retrying: the
+# caller decides when to come back.
+#
+# If the connection closes early (curl exit 18), stalls, or fails, it resumes with
+# Range + If-Range, so a resumed download is only ever joined to the same version of the
+# file. If the file changed upstream (exit 33), or there is nothing safe to
 # resume against, it starts again from zero.
 #
 # --attempts caps attempts that make no progress; any attempt that adds bytes resets the
@@ -27,6 +31,7 @@ use Getopt::Long;
 use JSON::PP;
 use POSIX qw(WNOHANG);
 use Time::HiRes qw(sleep time);
+use Time::Local qw(timegm);
 
 my %opt = (
 	attempts          => 8,     # consecutive attempts without progress
@@ -47,6 +52,7 @@ my $out     = $opt{out};
 my $part    = "$out.part";
 my $headers = "$out.headers";
 my $errfile = "$out.curlerr";
+my $outfile = "$out.curlout";
 my $status  = $opt{status} || "$out.status";
 
 my $json = JSON::PP->new->canonical;
@@ -91,8 +97,10 @@ while (1) {
 
 	# learn the size and validators from the response
 	my $resp = $result->{response};
+	$state{finalUrl} = $result->{finalUrl} if $result->{finalUrl};
 	if ($resp->{code}) {
 		$state{httpCode} = $resp->{code};
+		$state{retryAfter} = $resp->{retryAfter};
 
 		if ($resp->{code} == 200) {
 			$state{expected} = $resp->{length} if defined $resp->{length};
@@ -155,12 +163,17 @@ sub decide {
 		return (1, $backoff, "size $size does not match $state{expected}");
 	}
 
+	if ($exit == 22 && ($code == 429 || $code == 503 || $code == 420 || $code == 509)) {
+		$state{throttled} = 1;
+		return (0, 0, "the server asked us to slow down (HTTP $code)");
+	}
+
 	if ($exit == 22) {    # HTTP error, from --fail
 		if ($code == 416) {    # range not satisfiable: our partial doesn't fit this file
 			restart();
 			return (1, 0, 'range not satisfiable; starting again');
 		}
-		return (1, $backoff, "HTTP $code") if $code == 408 || $code == 429 || $code >= 500;
+		return (1, $backoff, "HTTP $code") if $code == 408 || $code >= 500;
 		return (0, 0, 'HTTP ' . ($code || 'error'));
 	}
 
@@ -187,7 +200,7 @@ sub validator {
 sub runCurl {
 	my $resume = shift;
 
-	my @cmd = ($opt{curl}, '-sS', '-L', '--fail',
+	my @cmd = ($opt{curl}, '-sS', '-L', '--fail', '-w', '%{url_effective}',
 		'--connect-timeout', $opt{'connect-timeout'},
 		'--speed-limit', 1024, '--speed-time', $opt{'stall-time'},
 		'-D', $headers, '-o', $part);
@@ -195,13 +208,13 @@ sub runCurl {
 	push @cmd, '-C', '-', '-H', 'If-Range: ' . validator() if $resume;
 	push @cmd, '--', $opt{url};
 
-	unlink $headers, $errfile;
+	unlink $headers, $errfile, $outfile;
 
 	$curlPid = fork();
 	die "fork: $!" unless defined $curlPid;
 
 	if (!$curlPid) {
-		open(STDOUT, '>', '/dev/null');
+		open(STDOUT, '>', $outfile);
 		open(STDERR, '>', $errfile);
 		exec @cmd or exit 127;
 	}
@@ -216,6 +229,14 @@ sub runCurl {
 			$state{bytes} = -s $part || 0;
 			my $resp = parseHeaders();
 			$state{expected} ||= $resp->{code} && $resp->{code} == 206 ? $resp->{total} : $resp->{length};
+
+			# note the validators as soon as a fresh download starts, so a download stopped
+			# half-way (LMS shutting down, a play request pre-empting it) can be resumed
+			if (!$resume && $resp->{code} && $resp->{code} == 200) {
+				$state{etag} = $resp->{etag};
+				$state{lastModified} = $resp->{lastModified};
+			}
+
 			writeStatus();
 			$last = time();
 		}
@@ -233,7 +254,14 @@ sub runCurl {
 		$error =~ s/\s+$//;
 	}
 
-	return { exit => $exit, response => parseHeaders(), error => $error };
+	my $finalUrl;
+	if (open(my $fh, '<', $outfile)) {
+		local $/;
+		$finalUrl = <$fh>;
+		close $fh;
+	}
+
+	return { exit => $exit, response => parseHeaders(), error => $error, finalUrl => $finalUrl };
 }
 
 # the final response's status and headers (after any redirects)
@@ -261,7 +289,24 @@ sub parseHeaders {
 		total        => $total,
 		etag         => $h{etag},
 		lastModified => $h{'last-modified'},
+		retryAfter   => scalar retryAfter($h{'retry-after'}),
 	};
+}
+
+# Retry-After: seconds, or an HTTP date; returns seconds from now, or undef
+sub retryAfter {
+	my $v = shift;
+	return unless defined $v && length $v;
+	return $v + 0 if $v =~ /^\s*\d+\s*$/;
+
+	my %mon = (jan => 0, feb => 1, mar => 2, apr => 3, may => 4, jun => 5, jul => 6, aug => 7, sep => 8, oct => 9, nov => 10, dec => 11);
+	my ($d, $m, $y, $H, $M, $S) = $v =~ /(\d{1,2})[ -]([A-Za-z]{3})[ -](\d{2,4})\s+(\d\d):(\d\d):(\d\d)/ or return;
+	return unless defined $mon{ lc $m };
+	$y += 1900 if $y < 100;
+
+	my $at = eval { timegm($S, $M, $H, $d, $mon{ lc $m }, $y) } or return;
+	my $secs = int($at - time());
+	return $secs > 0 ? $secs : 0;
 }
 
 sub writeStatus {
@@ -287,7 +332,7 @@ sub finish {
 	$state{finishedAt} = time();
 
 	writeStatus();
-	unlink $headers, $errfile;
+	unlink $headers, $errfile, $outfile;
 
 	exit($ok ? 0 : 1);
 }

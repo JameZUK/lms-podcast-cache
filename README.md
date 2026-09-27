@@ -45,15 +45,47 @@ every feed at once.
 
 ## What it does
 
-- Downloads episodes at full speed, **resuming with `Range:` if truncated**.
-- Caches to a configurable location, one **directory per podcast**, all episodes together.
-- Retention per feed: keep the newest **N**, or **all**, or **only what's playing** —
-  N and the mode are both configurable, globally and per feed.
-- Plays from the local file when cached; falls back to fetch-then-play when not.
-- Keeps the episodes **out of the music library** by caching to a hidden directory
-  (`<music folder>/.podcast-cache` by default; see `DESIGN.md`).
-- Leaves the built-in plugin's feeds, menus and resume positions alone: it only replaces
+- **Plays episodes from disk.** Press play on an episode that isn't cached yet and it is
+  downloaded first (at full speed, *resuming* if the server cuts it off), then played
+  locally. If the download takes longer than you're willing to wait (30 s by default), it
+  streams as before while the download finishes for next time.
+- **Downloads new episodes ahead of time.** The feeds are checked every few hours, and the
+  newest episodes of each podcast are downloaded before you ask for them.
+- **Keeps what you want, per podcast:** the newest **N**, **all** episodes, or **only the
+  one playing**. Nothing you're playing, have queued, or are part-way through is deleted.
+- **Can fetch a back catalogue.** For a podcast set to keep everything, it can download
+  every past episode too: the newest first, then the first few (for shows best heard from
+  the start), then the rest.
+- **Is polite to podcast servers**, and works out how polite by itself (see below).
+- **Shows its state in the podcast menus:** `[cached]`, `[downloading 42%]` or `[queued]`
+  next to each episode (in Material and on devices).
+- **Has a status page** under its settings: whether playback is being handled, the cache
+  folder and its mount, what's cached, each podcast server's state, recent activity and
+  errors.
+- Keeps episodes **out of the music library**, by caching to a hidden folder
+  (`<music folder>/.podcast-cache` by default).
+- Leaves the built-in plugin's feeds, menus and resume positions alone: it only changes
   how an episode is played.
+
+### Being polite to podcast servers
+
+Downloads run one at a time. Anything you've pressed play on goes first, and pauses a
+background download to do so (which then resumes where it left off). Background downloads
+(new episodes, back catalogues) are spaced out per server, and the spacing adjusts itself:
+
+- it shrinks while a server's downloads go smoothly, and grows when the server pushes back;
+- a server that says "slow down" (HTTP 429 or 503) is left alone for as long as it asks
+  (`Retry-After`), or for a growing while (1 minute, 5, 15, an hour, 6 hours, a day) if it
+  doesn't say;
+- a server that refuses us twice (HTTP 403) is left alone for a day;
+- a server that suddenly gets much slower than usual is treated as a hint to slow down;
+- background downloads wait while live streams are using a real share of your
+  connection. The plugin measures your connection's speed, so on a fast line this never
+  gets in the way.
+
+The only setting is how polite to start from: *gentle*, *normal* or *fast*. There's no
+speed cap: some servers cut off clients that read slowly, which is the problem this plugin
+exists to avoid.
 
 ## Install
 
@@ -73,10 +105,9 @@ LMS offers updates as new versions are released.
 
 ## Status
 
-**Working, pre-1.0.** Downloading (with resume), playing from disk, fetch-then-play with a
-streaming fallback, prefetch of new episodes, and per-podcast retention all work. Still to
-come: `[cached]` labels in the podcast menus. See `DESIGN.md` for the architecture and
-`TASKS.md` for progress.
+**Working, pre-1.0.** Everything above works and has been tested on a real LMS 9.1
+server. Still to do: the long-play acceptance test through a UPnP bridge. See `DESIGN.md`
+for the architecture and `TASKS.md` for progress.
 
 ## Layout
 

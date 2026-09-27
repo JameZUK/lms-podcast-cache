@@ -102,6 +102,13 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       nightly backup. *(Done 2026-09-27: `Prefetch.pm`, settings "Automatic downloads";
       verified on the LMS host, see DESIGN.md "Prefetch".)*
 
+## 6b. Politeness and the back catalogue
+- [x] Per-podcast "download the back catalogue" (with keep all) and "start of series: first
+      N" (global default 3). *(`Plan.pm`, tested.)*
+- [x] Adaptive per-server gaps and backoff; honour `Retry-After`; pause background downloads
+      while live streams use the connection; play requests pre-empt background downloads.
+      *(`Hosts.pm` tested; verified on the LMS host with a fake throttling server.)*
+
 ## 7. Ship
 - [ ] Test on a real hour-long episode end to end on the UPnP test speaker. That is the acceptance
       test: it must play the full hour with no drop.

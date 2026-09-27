@@ -178,6 +178,49 @@ Verified on the LMS host: a refresh queued and downloaded the newest 3 episodes;
 found nothing new; with quiet hours covering the current hour, browsing the feed queued
 nothing.
 
+## Politeness and download order
+
+Added 2026-09-27 after discussing it: with a back catalogue it's easy to ask a server for
+hundreds of files, and servers do push back.
+
+**Order** (`Plan.pm`, `Downloader.pm`): one download at a time. Priorities:
+0. **play**: someone pressed play. Ignores the gaps and **pre-empts** a running background
+   download (stopped, partial kept, re-queued, not held against the server).
+1. **newest**: the newest N (keep = N), or the newest 3 (keep = all).
+2. **start of series**: with the back catalogue on, the first N episodes (global default 3,
+   per-podcast override), oldest first.
+3. **back catalogue**: everything else, newest first.
+
+The back catalogue is only offered with "keep all episodes": otherwise retention would
+delete what it downloaded. Turning it off drops its queued jobs.
+
+**Per-server politeness** (`Hosts.pm`, state kept in LMS's cache so it survives restarts):
+- An adaptive **gap between background downloads**, per server, like TCP congestion
+  control: x0.85 after a clean download (down to the preset's minimum), x2 on a throttle,
+  x1.5 on a network failure or a download much slower than that server's norm.
+  Presets: gentle (starts at 5 min, min 2 min), normal (2 min / 30 s), fast (30 s / 5 s).
+- **429 / 503 / 420 / 509**: `fetch-episode.pl` stops at once and reports it with
+  `Retry-After` (seconds or an HTTP date). The server cools down for exactly that long, or
+  1 min, 5, 15, 1 h, 6 h, 24 h as it repeats. The job is re-queued (up to 5 times).
+- **403 / 401 twice**: probably blocked; 24 h.
+- **Three network failures in a row**: cool down.
+- A job is judged by its enclosure host *and* the host it last redirected to (the CDN),
+  since either may be the one throttling.
+- A play request for a server that's cooling down fails at once, so the episode streams.
+
+**Bandwidth**: no speed cap, because a slow steady read is exactly what the failing server
+punishes. Instead `Hosts.pm` keeps an estimate of the connection's capacity (the fastest
+recent downloads, decaying slowly), and background downloads wait while live streams on
+the players use more than 20% of it. On a fast line that never triggers.
+
+`fetch-episode.pl` records the validators (ETag / Last-Modified) as soon as a download's
+headers arrive, so a download stopped half-way (pre-empted, or LMS shutting down) resumes.
+
+Verified on the LMS host with a local fake server: a `429 Retry-After: 300` put that server
+in a 5-minute cooldown and re-queued the job; a play request paused a running background
+download, downloaded and played its episode from disk, then resumed the paused one
+("1 resume").
+
 ## Architecture
 
 ```
@@ -196,6 +239,8 @@ Plugins/PodcastCache/
   Feeds.pm             wraps the built-in parser to remember each episode's feed, title,
                        date and type, by enclosure url; hands them to Prefetch and Retention
   Prefetch.pm          checks the feeds on a timer and queues new episodes
+  Plan.pm              which episodes of a feed to download, in what order (tested)
+  Hosts.pm             adaptive politeness per server: gaps, backoff, capacity (tested)
   Retention.pm         prunes each feed to its keep setting, protecting what's in use
   Settings.pm          web settings: cache root, default keep, per-feed keep
   Status.pm            settings-page status: health checks, cache contents, recent

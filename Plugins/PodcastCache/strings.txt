@@ -16,6 +16,12 @@ PLUGIN_PODCASTCACHE_CACHED
 PLUGIN_PODCASTCACHE_CACHED_DESC
 	EN	What is in the cache folder, one folder per podcast.
 
+PLUGIN_PODCASTCACHE_HOSTS
+	EN	Podcast servers
+
+PLUGIN_PODCASTCACHE_HOSTS_DESC
+	EN	How politely each server is being treated. Background downloads from one server are spaced out by a gap that adjusts itself: it shrinks while downloads go smoothly, and grows when a server pushes back (asks us to slow down, refuses, or gets much slower than usual). A server that asks us to wait is left alone until it's ready. Playing an episode is never held up by the gap.
+
 PLUGIN_PODCASTCACHE_EVENTS
 	EN	Recent activity
 

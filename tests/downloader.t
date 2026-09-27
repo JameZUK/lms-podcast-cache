@@ -83,9 +83,12 @@ sub handle {
 	elsif ($path eq '/404')       { status($c, 404) }
 	elsif ($path eq '/500')       { status($c, 500) }
 	elsif ($path eq '/503-once')  { $n == 1 ? status($c, 503) : serve($c, \%h, %strong) }
+	elsif ($path eq '/429-secs')  { status($c, 429, 'Retry-After: 120') }
+	elsif ($path eq '/429-date')  { status($c, 429, 'Retry-After: ' . httpDate(time() + 3600)) }
 	elsif ($path eq '/redirect')  { print $c "HTTP/1.1 302 Found\r\nLocation: /ok\r\nContent-Length: 0\r\nConnection: close\r\n\r\n" }
 	elsif ($path eq '/chunked')   { chunked($c) }
 	elsif ($path eq '/stall')     { serve($c, \%h, %strong, $n == 1 ? (stallAfter => 30_000) : ()) }
+	elsif ($path eq '/slow')      { serve($c, \%h, %strong, $n == 1 ? (stallAfter => 50_000) : ()) }
 	else                          { status($c, 404) }
 }
 
@@ -136,8 +139,14 @@ sub serve {
 }
 
 sub status {
-	my ($c, $code) = @_;
-	print $c "HTTP/1.1 $code Error\r\nContent-Length: 5\r\nConnection: close\r\n\r\nerror";
+	my ($c, $code, $extra) = @_;
+	print $c "HTTP/1.1 $code Error\r\nContent-Length: 5\r\n" . ($extra ? "$extra\r\n" : '') . "Connection: close\r\n\r\nerror";
+}
+
+sub httpDate {
+	my @t = gmtime(shift);
+	return sprintf('%s, %02d %s %04d %02d:%02d:%02d GMT', (qw(Sun Mon Tue Wed Thu Fri Sat))[$t[6]], $t[3],
+		(qw(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec))[$t[4]], $t[5] + 1900, @t[2, 1, 0]);
 }
 
 sub chunked {
@@ -282,11 +291,34 @@ subtest 'stalled connection: aborted and resumed' => sub {
 	like $r[1], qr/range=bytes=\d+- ifrange="etag-a"/, 'resumed after the stall';
 };
 
+subtest 'stopped half-way (e.g. LMS shutting down): the status keeps what is needed to resume' => sub {
+	my $out = "$dir/killed.mp3";
+	my $pid = fork();
+	if (!$pid) { exec $^X, $script, '--url', "http://127.0.0.1:$port/slow", '--out', $out; exit 127 }
+	sleep 2;
+	kill 'TERM', $pid;
+	waitpid($pid, 0);
+
+	my $st = do { open(my $fh, '<', "$out.status"); local $/; decode_json(<$fh>) };
+	is $st->{state}, 'failed', 'status: failed';
+	is $st->{error}, 'stopped', 'status: stopped';
+	is $st->{etag}, '"etag-a"', 'status: ETag already recorded';
+	ok -s "$out.part", 'partial kept (' . (-s "$out.part" || 0) . ' bytes)';
+
+	system($^X, $script, '--url', "http://127.0.0.1:$port/slow", '--out', $out, '--etag', $st->{etag}, '--expected', 200_000);
+	is $? >> 8, 0, 'the next run completes';
+	my @r = requests('/slow');
+	like $r[-1], qr/range=bytes=\d+- ifrange="etag-a"/, 'by resuming, not starting again';
+	my $data = do { open(my $fh, '<', $out); local $/; <$fh> };
+	same $data, $A, 'complete and identical';
+};
+
 subtest 'redirect' => sub {
 	my ($exit, $st, undef, $data) = fetch('/redirect');
 	is $exit, 0, 'exit 0';
 	same $data, $A, 'followed to the file';
 	is $st->{etag}, '"etag-a"', 'validators from the final response';
+	like $st->{finalUrl} // '', qr{/ok$}, 'records the final url after redirects';
 };
 
 subtest 'chunked, no Content-Length' => sub {
@@ -295,11 +327,25 @@ subtest 'chunked, no Content-Length' => sub {
 	same $data, $A, 'complete and identical';
 };
 
-subtest 'transient server error, then fine' => sub {
-	my ($exit, $st, undef, $data) = fetch('/503-once');
-	is $exit, 0, 'exit 0';
-	same $data, $A, 'complete';
-	is scalar(requests('/503-once')), 2, 'retried once';
+subtest '503: the server is asking us to slow down, so stop and report' => sub {
+	my ($exit, $st) = fetch('/503-once');
+	is $exit, 1, 'exit 1';
+	ok $st->{throttled}, 'status: throttled';
+	is $st->{httpCode}, 503, 'status: HTTP 503';
+	is scalar(requests('/503-once')), 1, 'no retry: the caller decides when to come back';
+};
+
+subtest '429 with Retry-After in seconds' => sub {
+	my ($exit, $st) = fetch('/429-secs');
+	is $exit, 1, 'exit 1';
+	ok $st->{throttled}, 'status: throttled';
+	is $st->{retryAfter}, 120, 'status: retryAfter 120';
+	is scalar(requests('/429-secs')), 1, 'one request';
+};
+
+subtest '429 with Retry-After as an HTTP date' => sub {
+	my ($exit, $st) = fetch('/429-date');
+	ok $st->{retryAfter} >= 3590 && $st->{retryAfter} <= 3600, 'retryAfter about an hour (' . ($st->{retryAfter} // 'undef') . ')';
 };
 
 subtest 'not found: gives up at once' => sub {

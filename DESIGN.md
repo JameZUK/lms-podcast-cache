@@ -101,6 +101,41 @@ insertion), a range from a different response would splice two different files i
 corrupt one. With `If-Range`, a changed file comes back as a full `200` instead of a `206`.
 A full retry costs ~2 s, so restarting from zero is always an acceptable fallback.
 
+## The downloader
+
+Two layers, so the hard part can be tested without LMS:
+
+- **`scripts/fetch-episode.pl`** does one download, start to finish, as its own process.
+  It runs curl to `<file>.part` and loops:
+  - **exit 18** (the server closed the connection early): resume at once with
+    `-C -` + `If-Range`;
+  - **exit 33** (a resume got a full `200`: the file changed, or no range support): delete
+    the `.part` and start from zero;
+  - **stall** (under 1 KB/s for `--stall-time`, curl exit 28), **network errors**, `5xx`,
+    `408`, `429`: back off (2 s doubling, max 60 s) and resume;
+  - **`416`**: the `.part` doesn't fit; start again. **Other `4xx`**, or can't write the
+    file: give up at once;
+  - it **never resumes without a validator** (a strong ETag, else Last-Modified), because
+    joining two versions of a file would corrupt it silently;
+  - `--attempts` caps attempts *without progress*. An attempt that adds bytes resets it,
+    so a server that cuts off every few MB still gets there (hard cap: 200 attempts).
+  - It renames `.part` to the final name only when the size matches `Content-Length`
+    (or, with no length, when curl saw a clean end), and writes a JSON status file about
+    once a second: state, bytes, expected, attempt, resumes, restarts, validators, error.
+- **`Downloader.pm`** is the LMS side: one download at a time (a play request jumps the
+  queue), started with `Proc::Background`, polled once a second with a timer, so it never
+  blocks the event loop. It runs the cache's mount guard first. A completed download is
+  recorded in the cache (with its size and validators); a failed one is recorded as partial
+  *with* its validators, so the next attempt resumes. LMS shutdown stops any running
+  download, and the partial stays for next time. `podcastcache fetch <url> [title]` on the
+  CLI queues one by hand.
+
+**Still missing for fetch-then-play:** at play time the handler only has the enclosure
+url and a title. The feed title, guid and pubdate (for the folder, the identity and
+retention) are known only when the built-in parser reads the feed. Next: record them
+per enclosure url by wrapping `Slim::Plugin::Podcast::Parser::parse`. The same hook serves
+the `[cached]` badges and prefetch.
+
 ## Architecture
 
 ```
@@ -110,8 +145,12 @@ Plugins/PodcastCache/
                        prefs, prefetch timer
   ProtocolHandler.pm   subclass of Slim::Plugin::Podcast::ProtocolHandler:
                        local file if cached, else fetch-then-play, else stream as today
-  Downloader.pm        NEW: queue, curl invocation, resume loop, progress
-  Cache.pm             NEW: path layout, sanitisation, index, prune
+  Downloader.pm        queue (one at a time), runs fetch-episode.pl as a separate
+                       process, polls its status file, records results in the cache
+  scripts/
+    fetch-episode.pl   standalone: one download with curl, resume/restart/retry loop,
+                       JSON status file; core Perl only, tested by tests/downloader.t
+  Cache.pm             path layout, sanitisation, sidecar index, prune, mount guard
   Settings.pm          web settings: cache root, default keep, per-feed keep
   Status.pm            settings-page status: health checks, cache contents, recent
                        activity (last 100 events, in memory)
@@ -201,7 +240,7 @@ offline) — that's still the acceptance test.
 <root>/<Feed Title>/<YYYY-MM-DD> - <Episode Title>.<ext>.part   while downloading
 ```
 
-Implemented in `Cache.pm` (2026-09-27), tested by `t/cache.t` without LMS:
+Implemented in `Cache.pm` (2026-09-27), tested by `tests/cache.t` without LMS:
 
 - **Sidecars are the only index.** There's no `.index.json` (a change from the first
   draft): the in-memory index is rebuilt at start-up by walking the tree and reading each

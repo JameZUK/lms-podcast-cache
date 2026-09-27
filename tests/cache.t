@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# Tests for Plugins::PodcastCache::Cache. Runs without LMS:  prove -I. t/cache.t
+# Tests for Plugins::PodcastCache::Cache. Runs without LMS:  prove -I. tests/cache.t
 
 use strict;
 use warnings;

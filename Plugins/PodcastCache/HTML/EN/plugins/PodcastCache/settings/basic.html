@@ -69,11 +69,25 @@
 			</tr>
 			<tr>
 				<td>Downloads</td>
-				<td><span class="pcc-warn">Not built yet</span> &mdash; for now, only episodes placed in the cache by hand play from disk; everything else streams as before</td>
+				<td>
+				[% IF status.downloads.active %]
+					[% d = status.downloads.active %]
+					<span class="pcc-ok">Downloading</span> &quot;[% d.title | html %]&quot; &mdash;
+					[% d.bytes / 1048576 | format('%.1f') %][% IF d.expected %] of [% d.expected / 1048576 | format('%.1f') %][% END %] MB,
+					[% d.secs %]s[% IF d.resumes %], [% d.resumes %] resume[% IF d.resumes > 1 %]s[% END %][% END %]
+				[% ELSE %]
+					Idle
+				[% END %]
+				[% IF status.downloads.queue.size %]
+					<br><span class="pcc-muted">Queued: [% status.downloads.queue.join('; ') | html %]</span>
+				[% END %]
+				<br><span class="pcc-muted">Not yet automatic: episodes still stream unless already cached.</span>
+				</td>
 			</tr>
 			<tr>
 				<td>Since LMS started</td>
 				<td>
+					[% status.counts.downloaded %] downloaded,
 					[% status.counts.fromCache %] played from cache,
 					[% status.counts.streamed %] streamed,
 					[% IF status.counts.errors %]<span class="pcc-bad">[% status.counts.errors %] errors</span>[% ELSE %]no errors[% END %]

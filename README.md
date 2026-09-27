@@ -72,5 +72,5 @@ is written and tested; the downloader is next. See `DESIGN.md` for the architect
 | `reference/PodcastExt/` | A third-party extension — the clean subclass pattern, for contrast |
 | `reference/stream-idle-test.py` | The reproducer that found the root cause |
 | `Plugins/PodcastCache/` | The plugin itself |
-| `t/` | Tests for the parts that don't need LMS: `prove -I. t/` |
+| `tests/` | Tests for the parts that don't need LMS: `prove -I. tests/` |
 | `ACCESS.md` | How to reach the test installation — **gitignored, local only** |

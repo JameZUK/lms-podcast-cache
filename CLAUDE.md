@@ -49,7 +49,7 @@ Don't commit anything pulled off the live hosts (prefs, logs, pcaps, feed data) 
 
 ## Tests
 
-`prove -I. t/` from the repo root (on Arch, `prove` is `/usr/bin/core_perl/prove`). Tests
+`prove -I. tests/` from the repo root (on Arch, `prove` is `/usr/bin/core_perl/prove`). Tests
 cover the modules that don't need LMS (`Cache.pm` so far); keep new logic in modules like
 that where possible. Everything else is tested on the live server.
 

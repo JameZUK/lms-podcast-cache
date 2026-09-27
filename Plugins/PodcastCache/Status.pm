@@ -20,7 +20,7 @@ my $log   = logger('plugin.podcastcache');
 my $prefs = preferences('plugin.podcastcache');
 
 my @events;
-my %counts = ( fromCache => 0, streamed => 0, errors => 0 );
+my %counts = ( fromCache => 0, streamed => 0, downloaded => 0, errors => 0 );
 
 my %logMethod = ( info => 'info', warn => 'warn', error => 'error' );
 
@@ -61,6 +61,7 @@ sub summary {
 		inLibrary      => _inLibrary($root),
 		folders        => $exists ? _contents($root) : [],
 		counts         => { %counts },
+		downloads      => Plugins::PodcastCache::Downloader->summary,
 		events         => [ map { { %$_, when => _when($_->{time}) } } @events ],
 	);
 

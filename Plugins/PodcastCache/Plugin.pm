@@ -15,6 +15,7 @@ use Slim::Utils::Prefs;
 # and the last registration wins.
 use Slim::Plugin::Podcast::ProtocolHandler;
 use Plugins::PodcastCache::Cache;
+use Plugins::PodcastCache::Downloader;
 use Plugins::PodcastCache::ProtocolHandler;
 use Plugins::PodcastCache::Status;
 
@@ -52,6 +53,9 @@ sub initPlugin {
 		Plugins::PodcastCache::Settings->new;
 	}
 
+	# podcastcache fetch <url> [title]: download an episode into the cache
+	Slim::Control::Request::addDispatch(['podcastcache', 'fetch', '_url', '_title'], [0, 0, 0, \&_cliFetch]);
+
 	Plugins::PodcastCache::Status->info('Started: handling podcast:// playback, cache at ' . $prefs->get('cacheRoot'));
 
 	if (!Slim::Utils::PluginManager->isEnabled('Slim::Plugin::Podcast::Plugin')) {
@@ -59,6 +63,30 @@ sub initPlugin {
 	}
 
 	$class->SUPER::initPlugin(@_);
+}
+
+sub shutdownPlugin {
+	Plugins::PodcastCache::Downloader->stop;
+}
+
+sub _cliFetch {
+	my $request = shift;
+
+	my $url = $request->getParam('_url') || '';
+	($url) = Slim::Plugin::Podcast::Plugin::unwrapUrl($url) if $url =~ m{^podcast://};
+
+	if ($url !~ m{^https?://}) {
+		$request->setStatusBadParams;
+		return;
+	}
+
+	Plugins::PodcastCache::Downloader->fetch({
+		url       => $url,
+		title     => $request->getParam('_title'),
+		feedTitle => 'Unsorted',
+	});
+
+	$request->setStatusDone;
 }
 
 sub _defaultCacheRoot {

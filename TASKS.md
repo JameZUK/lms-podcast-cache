@@ -25,7 +25,7 @@ Smallest useful thing first. Each step should leave something testable.
       Reproducer for the fault: `reference/stream-idle-test.py`.
 
 ## 1. Cache.pm — standalone, no LMS needed
-*(Done 2026-09-27: `Plugins/PodcastCache/Cache.pm`, 80 assertions in `t/cache.t`, passing
+*(Done 2026-09-27: `Plugins/PodcastCache/Cache.pm`, 80 assertions in `tests/cache.t`, passing
 on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.)*
 - [x] Path layout + sanitisation (see DESIGN.md). Unit-test the nasty cases: `/` in titles,
       unicode past 255 *bytes*, two episodes sanitising to the same name, leading dots.
@@ -35,14 +35,19 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       expected to be one.
 
 ## 2. Downloader.pm — standalone script first
-- [ ] Fetch to `.part`, resume with `Range:` + `If-Range` until `bytes == Content-Length`,
+- [x] Fetch to `.part`, resume with `Range:` + `If-Range` until `bytes == Content-Length`,
       rename on success. A `200` answering a resume means the file changed: start over.
-      Bounded retries with backoff; give up loudly.
+      Bounded retries with backoff; give up loudly. *(Done 2026-09-27:
+      `scripts/fetch-episode.pl`; `tests/downloader.t` runs it against a local server that
+      cuts, stalls, changes the file, redirects and errors on purpose.)*
 - [ ] Prove it against the real failing episode — it must produce a complete 85,900,147-byte
       file despite the mid-download truncation. **This is the whole point of the project;
       don't move on until it passes.**
-- [ ] Only then wire it into LMS as a non-blocking child process (`Proc::Background`) +
-      poll timer.
+- [x] Only then wire it into LMS as a non-blocking child process (`Proc::Background`) +
+      poll timer. *(Done 2026-09-27: `Downloader.pm`, CLI `podcastcache fetch <url> [title]`,
+      progress on the settings page. Verified on the LMS host: an 81 MB episode in 8 s,
+      recorded in the cache with its validators, and CLI round-trips stayed at 24-29 ms
+      during the download.)*
 
 ## 3. Plugin skeleton
 - [ ] `Plugins/PodcastCache/`: `install.xml`, `Plugin.pm` that requires the built-in
@@ -62,6 +67,9 @@ on Perl 5.42 and on the LMS host's 5.38.2. Not yet used by playback; see step 4.
       using the mechanism proven in step 0. *(Done 2026-09-27: looks the enclosure url up in
       Cache.pm's sidecar index, built on first use; verified on the LMS host with the
       hand-placed test episode.)*
+- [ ] Record feed title, guid and pubdate per enclosure url when the built-in parser reads a
+      feed (wrap `Slim::Plugin::Podcast::Parser::parse`), so downloads land in the right
+      folder with the right identity.
 - [ ] Otherwise fetch, then play the local file.
 - [ ] If the download fails or the cache is unavailable, fall back to streaming as the
       built-in does today.

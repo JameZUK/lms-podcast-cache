@@ -405,9 +405,12 @@ in the local, gitignored `ACCESS.md`. What matters for the design:
   on top of it. After autofs's idle timeout, only the `autofs` entry remains until something
   touches the path, so the guard touches the path first, then checks.
 - **The file server's nightly backup copies the music share without `--delete`.** Cached
-  episodes get backed up for free, but pruned ones are **not** removed from the backup and
-  will accumulate indefinitely. Either accept it, exclude `.podcast-cache/` from the backup,
-  or add `--delete` for that subtree. Decide before shipping.
+  episodes get backed up for free, but pruned ones would **not** be removed from the backup.
+  **Decided 2026-09-27: the backup follows retention**, so old episodes are pruned there too,
+  in line with each podcast's setting. The backup job should copy the music share as now but
+  exclude `.podcast-cache/`, and mirror `.podcast-cache/` separately with `--delete` (the
+  deletion confined to that folder). That's a change on the file server, outside this
+  plugin; the specifics are in `ACCESS.md`.
 - **The LMS host is a small VM.** Don't cache to its local disk.
 - Deploy the plugin to **`/var/lib/squeezeboxserver/Plugins/`**, *not*
   `cache/InstalledPlugins/Plugins/`: the extension manager schedules anything in

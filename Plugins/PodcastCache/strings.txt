@@ -1,0 +1,41 @@
+PLUGIN_PODCASTCACHE
+	EN	Podcast Cache
+
+PLUGIN_PODCASTCACHE_DESC
+	EN	Download podcast episodes to disk and play them locally (needs the built-in Podcasts plugin)
+
+PLUGIN_PODCASTCACHE_STATUS
+	EN	Status
+
+PLUGIN_PODCASTCACHE_STATUS_DESC
+	EN	Whether cached episodes are being played from disk, and anything stopping that. Reload the page to refresh.
+
+PLUGIN_PODCASTCACHE_CACHED
+	EN	Cached episodes
+
+PLUGIN_PODCASTCACHE_CACHED_DESC
+	EN	What is in the cache folder, one folder per podcast.
+
+PLUGIN_PODCASTCACHE_EVENTS
+	EN	Recent activity
+
+PLUGIN_PODCASTCACHE_EVENTS_DESC
+	EN	The last 100 things this plugin did, newest first. Cleared when LMS restarts.
+
+PLUGIN_PODCASTCACHE_CACHE_ROOT
+	EN	Cache folder
+
+PLUGIN_PODCASTCACHE_CACHE_ROOT_DESC
+	EN	Where downloaded episodes are kept. To keep episodes out of your music library, use a folder whose name starts with a dot (the scanner skips those), or one outside your music folders.
+
+PLUGIN_PODCASTCACHE_DEFAULT_KEEP
+	EN	Episodes to keep
+
+PLUGIN_PODCASTCACHE_DEFAULT_KEEP_DESC
+	EN	How many episodes of each podcast to keep on disk, unless set below. Older episodes are deleted, but never one that is playing. (Applied once downloads are built.)
+
+PLUGIN_PODCASTCACHE_FEEDS
+	EN	Per podcast
+
+PLUGIN_PODCASTCACHE_FEEDS_DESC
+	EN	Override the number of episodes kept for individual podcasts. These are your subscriptions from the built-in Podcasts plugin.

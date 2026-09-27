@@ -1,0 +1,46 @@
+# ---------------------------------------------------------------------------
+# Access detail for the test installation — deliberately NOT committed.
+# ACCESS.md describes how to reach it; this repo is public.
+# ---------------------------------------------------------------------------
+ACCESS.md
+access*.md
+ACCESS*
+*.local.md
+
+# Anything pulled off the live hosts while developing
+prefs/
+*.prefs
+server.log*
+scanner.log*
+*.pcap
+*.pcapng
+journal*.txt
+*-dump.json
+*-dump.txt
+
+# Keys / secrets, belt and braces
+id_*
+!id_*.pub
+*_ed25519
+!*_ed25519.pub
+*.pem
+*.key
+.env
+secret*
+
+# Cached media and anything fetched from a feed
+cache/
+episodes/
+podcasts/
+*.part
+*.mp3
+*.m4a
+*.aac
+*.ogg
+*.flac
+*.opus
+
+# Editor / OS noise
+*.swp
+*~
+.DS_Store

@@ -1,0 +1,18 @@
+<?xml version='1.0' standalone='yes'?>
+<extensions>
+  <targetApplication>
+    <maxVersion>*</maxVersion>
+    <id>SlimServer</id>
+    <minVersion>9.0</minVersion>
+  </targetApplication>
+  <id>542fdb81-fd1c-4946-ba70-cf7518be80e1</id>
+  <defaultState>enabled</defaultState>
+  <version>0.0.2</version>
+  <name>PLUGIN_PODCASTCACHE</name>
+  <description>PLUGIN_PODCASTCACHE_DESC</description>
+  <optionsURL>plugins/PodcastCache/settings/basic.html</optionsURL>
+  <module>Plugins::PodcastCache::Plugin</module>
+  <creator>JameZUK</creator>
+  <category>musicservices</category>
+  <icon>plugins/Podcast/html/images/icon.png</icon>
+</extensions>

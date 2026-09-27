@@ -1,0 +1,177 @@
+[% PROCESS settings/header.html %]
+
+	<style>
+		.pcc td, .pcc th { padding: 3px 12px 3px 0; text-align: left; vertical-align: top; }
+		.pcc th { font-weight: bold; }
+		.pcc-ok    { color: #2e7d32; font-weight: bold; }
+		.pcc-bad   { color: #c62828; font-weight: bold; }
+		.pcc-warn  { color: #b26a00; font-weight: bold; }
+		.pcc-muted { opacity: 0.7; }
+		.pcc-events { max-height: 22em; overflow-y: auto; }
+	</style>
+
+	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_STATUS" desc="PLUGIN_PODCASTCACHE_STATUS_DESC" %]
+		<p>
+		[% IF status.problems.size %]
+			<span class="pcc-bad">Needs attention:</span>
+			[% status.problems.join('; ') | html %].
+		[% ELSE %]
+			<span class="pcc-ok">Working.</span> Cached episodes play from disk.
+		[% END %]
+		</p>
+
+		<table class="pcc">
+			<tr>
+				<td>Playback</td>
+				<td>
+				[% IF status.handlerActive %]
+					<span class="pcc-ok">Active</span> &mdash; this plugin handles podcast:// playback
+				[% ELSE %]
+					<span class="pcc-bad">Not active</span> &mdash; podcast:// is handled by [% status.handler | html %]
+				[% END %]
+				</td>
+			</tr>
+			<tr>
+				<td>Built-in Podcasts plugin</td>
+				<td>
+				[% IF status.builtinEnabled %]
+					<span class="pcc-ok">Enabled</span> &mdash; provides the feeds and menus
+				[% ELSE %]
+					<span class="pcc-bad">Disabled</span> &mdash; enable it under Plugins; it provides the feeds and menus
+				[% END %]
+				</td>
+			</tr>
+			<tr>
+				<td>Cache folder</td>
+				<td>
+					[% status.cacheRoot | html %] &mdash;
+					[% IF !status.rootExists %]
+						<span class="pcc-bad">does not exist</span>
+					[% ELSIF status.rootWritable %]
+						<span class="pcc-ok">writable</span>
+					[% ELSE %]
+						<span class="pcc-bad">not writable by LMS</span>
+					[% END %]
+					[% IF status.mount %]
+						<br><span class="pcc-muted">on [% status.mount.type | html %] mount [% status.mount.point | html %] ([% status.mount.source | html %])</span>
+					[% END %]
+				</td>
+			</tr>
+			<tr>
+				<td>Music library</td>
+				<td>
+				[% IF status.inLibrary %]
+					<span class="pcc-bad">Episodes would be scanned into the library</span> &mdash; use a folder whose name starts with a dot, or one outside your music folders
+				[% ELSE %]
+					<span class="pcc-ok">Kept out</span> &mdash; the scanner skips this folder
+				[% END %]
+				</td>
+			</tr>
+			<tr>
+				<td>Downloads</td>
+				<td><span class="pcc-warn">Not built yet</span> &mdash; for now, only episodes placed in the cache by hand play from disk; everything else streams as before</td>
+			</tr>
+			<tr>
+				<td>Since LMS started</td>
+				<td>
+					[% status.counts.fromCache %] played from cache,
+					[% status.counts.streamed %] streamed,
+					[% IF status.counts.errors %]<span class="pcc-bad">[% status.counts.errors %] errors</span>[% ELSE %]no errors[% END %]
+				</td>
+			</tr>
+		</table>
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_CACHED" desc="PLUGIN_PODCASTCACHE_CACHED_DESC" %]
+		[% IF status.folders.size %]
+		<table class="pcc">
+			<tr><th>Folder</th><th>Episodes</th><th>Size</th><th>Incomplete downloads</th></tr>
+			[% FOREACH folder = status.folders %]
+			<tr>
+				<td>[% folder.name | html %]</td>
+				<td>[% folder.episodes %]</td>
+				<td>[% folder.size %]</td>
+				<td>[% folder.partial || '' %]</td>
+			</tr>
+			[% END %]
+		</table>
+		[% ELSE %]
+			<span class="pcc-muted">Nothing cached yet.</span>
+		[% END %]
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_EVENTS" desc="PLUGIN_PODCASTCACHE_EVENTS_DESC" %]
+		[% IF status.events.size %]
+		<div class="pcc-events">
+		<table class="pcc">
+			[% FOREACH event = status.events %]
+			<tr>
+				<td class="pcc-muted" style="white-space: nowrap">[% event.when %]</td>
+				<td>[% IF event.level == 'error' %]<span class="pcc-bad">Error</span>[% ELSIF event.level == 'warn' %]<span class="pcc-warn">Warning</span>[% END %]</td>
+				<td>[% event.msg | html %]</td>
+			</tr>
+			[% END %]
+		</table>
+		</div>
+		[% ELSE %]
+			<span class="pcc-muted">No activity since LMS started.</span>
+		[% END %]
+		<p><a href="/server.log?lines=500" target="_blank">Open the full server log</a></p>
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_CACHE_ROOT" desc="PLUGIN_PODCASTCACHE_CACHE_ROOT_DESC" %]
+		<input type="text" class="stdedit" name="pref_cacheRoot" id="cacheRoot" value="[% prefs.pref_cacheRoot | html %]" size="50">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_DEFAULT_KEEP" desc="PLUGIN_PODCASTCACHE_DEFAULT_KEEP_DESC" %]
+		<select class="stdedit pcc-mode" name="default_mode" data-n="default_n">
+			<option value="newest"  [% IF defaultKeep.mode == 'newest'  %]selected[% END %]>Keep the newest&hellip;</option>
+			<option value="all"     [% IF defaultKeep.mode == 'all'     %]selected[% END %]>Keep all episodes</option>
+			<option value="current" [% IF defaultKeep.mode == 'current' %]selected[% END %]>Keep only the episode playing</option>
+		</select>
+		<input type="number" min="1" max="999" class="stdedit" name="default_n" value="[% defaultKeep.n | html %]" style="width: 5em">
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_PODCASTCACHE_FEEDS" desc="PLUGIN_PODCASTCACHE_FEEDS_DESC" %]
+		[% IF feeds.size %]
+		<table class="pcc">
+			<tr><th>Podcast</th><th>Episodes to keep</th></tr>
+			[% FOREACH feed = feeds %]
+			<tr>
+				<td>
+					[% feed.name | html %]
+					<input type="hidden" name="feed_url_[% loop.index %]" value="[% feed.url | html %]">
+				</td>
+				<td>
+					<select class="stdedit pcc-mode" name="feed_mode_[% loop.index %]" data-n="feed_n_[% loop.index %]">
+						<option value="default" [% IF feed.mode == 'default' %]selected[% END %]>Use the default ([% defaultLabel | html %])</option>
+						<option value="newest"  [% IF feed.mode == 'newest'  %]selected[% END %]>Keep the newest&hellip;</option>
+						<option value="all"     [% IF feed.mode == 'all'     %]selected[% END %]>Keep all episodes</option>
+						<option value="current" [% IF feed.mode == 'current' %]selected[% END %]>Keep only the episode playing</option>
+					</select>
+					<input type="number" min="1" max="999" class="stdedit" name="feed_n_[% loop.index %]" value="[% feed.n | html %]" style="width: 5em">
+				</td>
+			</tr>
+			[% END %]
+		</table>
+		[% ELSE %]
+			<span class="pcc-muted">No subscriptions. Add podcasts in the built-in Podcasts plugin's settings.</span>
+		[% END %]
+	[% END %]
+
+	<script type="text/javascript">
+		// show the number box only when "Keep the newest..." is chosen
+		(function() {
+			function sync(select) {
+				var n = document.getElementsByName(select.getAttribute('data-n'))[0];
+				if (n) n.style.display = select.value == 'newest' ? '' : 'none';
+			}
+			var selects = document.querySelectorAll('select.pcc-mode');
+			for (var i = 0; i < selects.length; i++) {
+				sync(selects[i]);
+				selects[i].onchange = function() { sync(this); };
+			}
+		})();
+	</script>
+
+[% PROCESS settings/footer.html %]

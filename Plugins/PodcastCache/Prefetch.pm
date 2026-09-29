@@ -135,8 +135,8 @@ sub queue {
 		allCount => ALL_COUNT,
 	);
 
-	# not cached yet, and not known to be gone from the server
-	my @missing = grep { !$cache->completePath($_->[1]->{url}) && !Plugins::PodcastCache::Downloader->isGone($_->[1]->{url}) } @planned;
+	# not cached yet, not gone from the server, and not set aside after failing
+	my @missing = grep { !$cache->completePath($_->[1]->{url}) && !Plugins::PodcastCache::Downloader->isSkipped($_->[1]->{url}) } @planned;
 	return unless @missing;
 
 	return unless $cache->writable->{ok};    # _check reports this; don't repeat it per feed

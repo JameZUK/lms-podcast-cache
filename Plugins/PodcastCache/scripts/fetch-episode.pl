@@ -182,7 +182,9 @@ sub decide {
 	my %transient = map { $_ => 1 } (5, 6, 7, 16, 28, 35, 52, 55, 56, 92);
 	return (1, $backoff, $curlError || "curl exit $exit") if $transient{$exit};
 
-	# anything else (bad url, can't write the file, ...) won't fix itself
+	# anything else (bad url, can't write the file, ...) won't fix itself, and isn't the
+	# server's doing: say so, so it isn't held against the server
+	$state{local} = 1;
 	return (0, 0, $curlError || "curl exit $exit");
 }
 
@@ -200,7 +202,9 @@ sub validator {
 sub runCurl {
 	my $resume = shift;
 
-	my @cmd = ($opt{curl}, '-sS', '-L', '--fail', '-w', '%{url_effective}',
+	# --globoff: take the URL literally; podcast URLs contain [ ] (e.g. "_[192k]-"), which
+	# curl would otherwise read as a range of files to fetch
+	my @cmd = ($opt{curl}, '-sS', '-L', '--fail', '--globoff', '-w', '%{url_effective}',
 		'--connect-timeout', $opt{'connect-timeout'},
 		'--speed-limit', 1024, '--speed-time', $opt{'stall-time'},
 		'-D', $headers, '-o', $part);

@@ -205,6 +205,13 @@ so it takes effect at once rather than at the next 6-hourly check.
   `Retry-After` (seconds or an HTTP date). The server cools down for exactly that long, or
   1 min, 5, 15, 1 h, 6 h, 24 h as it repeats. The job is re-queued (up to 5 times).
 - **403 / 401 twice**: probably blocked; 24 h.
+- **Only the server's own failures count against it**: HTTP errors and network trouble.
+  A problem on our side (a URL curl rejects, a file it can't write) is flagged `local` by
+  the script and not counted. Found in use: a URL containing `[192k]` failed as a curl
+  "bad range" (fixed with `--globoff`), and because each failure was held against the
+  server, it escalated to a 24 h cooldown and stalled a 350-episode back catalogue.
+- **An episode that keeps failing** for any other reason is set aside at feed checks for
+  1 day, then 2, 4... up to 30, so one broken episode can't sit at the head of the queue.
 - **404 / 410 / 451**: that file is gone, which says nothing about the server, so it isn't
   held against it (found on a real back catalogue: its oldest episodes are dead links).
   The episode is remembered as gone for 30 days, so feed checks skip it; its leftover

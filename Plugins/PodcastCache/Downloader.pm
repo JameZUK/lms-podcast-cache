@@ -23,6 +23,10 @@ package Plugins::PodcastCache::Downloader;
 #    failures drop it until the next feed check, which re-queues it and resumes the partial.
 #  - An episode whose file is gone (404, 410, 451) is remembered for GONE_DAYS, so feed
 #    checks skip it; pressing play still tries it.
+#  - Only the server's own failures count against it (Hosts.pm): HTTP errors and network
+#    trouble, not a problem on our side (a URL curl rejects, a file it can't write).
+#  - A background episode that keeps failing for any other reason is set aside for 1 day,
+#    then 2, 4... up to 30, so one broken episode can't hold up the rest of the queue.
 
 use strict;
 
@@ -49,6 +53,8 @@ use constant MAX_THROTTLES  => 5;      # re-queues of one job after the server t
 use constant GONE_DAYS      => 30;     # skip an episode whose file has gone for this long
 
 my %GONE = map { $_ => 1 } (404, 410, 451);
+
+use constant MAX_SKIP_DAYS => 30;
 
 my $log      = logger('plugin.podcastcache');
 my $prefs    = preferences('plugin.podcastcache');
@@ -279,6 +285,8 @@ sub _poll {
 		Plugins::PodcastCache::Status->info(sprintf('Paused "%s" to download an episode being played', $title));
 	}
 	elsif ($status && $status->{state} eq 'complete') {
+		$lmsCache->remove('podcastcache-fails-' . $job->{episode}->{url});    # it works now
+
 		$cache->record($job->{path}, $job->{episode}, state => 'complete',
 			expectedSize => $status->{expected} || -s $job->{path}, %validators);
 
@@ -302,9 +310,12 @@ sub _poll {
 	else {
 		my $error = $status ? ($status->{error} || 'failed') : 'the download process ended without a status';
 
-		hosts()->finished($_, code => ($status && $status->{httpCode}) || 0,
-			retryAfter => $status && $status->{retryAfter}) for _hostsFor($job);
-		_saveHosts();
+		# the server's doing (an HTTP error, network trouble) counts against it; ours doesn't
+		if (!($status && $status->{local})) {
+			hosts()->finished($_, code => ($status && $status->{httpCode}) || 0,
+				retryAfter => $status && $status->{retryAfter}) for _hostsFor($job);
+			_saveHosts();
+		}
 
 		my $code = $status && $status->{httpCode} || 0;
 
@@ -337,11 +348,28 @@ sub _poll {
 				$title, $error, _hhmm(_readyAt($job))));
 		}
 		else {
-			_finish($job, undef, "Download of \"$title\" failed: $error");
+			my $retry = $job->{priority} != PLAY ? _setAside($job) : '';
+			_finish($job, undef, "Download of \"$title\" failed: $error" . ($retry ? "; will try again $retry" : ''));
 		}
 	}
 
 	_next();
+}
+
+# a background episode failed (not throttled, not gone): skip it at feed checks for a while,
+# 1 day, then 2, 4... up to MAX_SKIP_DAYS. Returns when it'll be tried again, for the log.
+sub _setAside {
+	my $job = shift;
+	my $key = 'podcastcache-fails-' . $job->{episode}->{url};
+
+	my $fails = ($lmsCache->get($key) || {})->{count} || 0;
+	$fails++;
+
+	my $days = 2 ** ($fails - 1);
+	$days = MAX_SKIP_DAYS if $days > MAX_SKIP_DAYS;
+
+	$lmsCache->set($key, { count => $fails, until => time() + $days * 86400 }, (MAX_SKIP_DAYS * 2) . 'days');
+	return $days == 1 ? 'in a day' : "in $days days";
 }
 
 sub _finish {
@@ -408,10 +436,16 @@ sub setPreset {
 	_next();
 }
 
-# is this episode's file known to be gone from its server?
-sub isGone {
+# should feed checks leave this episode alone for now? Its file is gone from the server,
+# or it has been failing and is set aside for a while.
+sub isSkipped {
 	my ($class, $url) = @_;
-	return $lmsCache->get("podcastcache-gone-$url") ? 1 : 0;
+	return 1 if $lmsCache->get("podcastcache-gone-$url");
+
+	my $fails = $lmsCache->get("podcastcache-fails-$url");
+	return 1 if $fails && ($fails->{until} || 0) > time();
+
+	return 0;
 }
 
 # where an episode is in the queue: { state => 'downloading', pct => N } or

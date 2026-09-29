@@ -89,6 +89,7 @@ sub handle {
 	elsif ($path eq '/chunked')   { chunked($c) }
 	elsif ($path eq '/stall')     { serve($c, \%h, %strong, $n == 1 ? (stallAfter => 30_000) : ()) }
 	elsif ($path eq '/slow')      { serve($c, \%h, %strong, $n == 1 ? (stallAfter => 50_000) : ()) }
+	elsif ($path eq '/ep_[192k]-1.mp3') { serve($c, \%h, %strong) }
 	else                          { status($c, 404) }
 }
 
@@ -348,12 +349,30 @@ subtest '429 with Retry-After as an HTTP date' => sub {
 	ok $st->{retryAfter} >= 3590 && $st->{retryAfter} <= 3600, 'retryAfter about an hour (' . ($st->{retryAfter} // 'undef') . ')';
 };
 
+subtest 'square brackets in the URL are taken literally' => sub {
+	my ($exit, $st, undef, $data) = fetch('/ep_[192k]-1.mp3');
+	is $exit, 0, 'exit 0 (curl would read [192k] as a range without --globoff)';
+	same $data, $A, 'complete and identical';
+};
+
+subtest 'a problem on our side is flagged as local, not the server\'s fault' => sub {
+	my $out = "$dir/local.mp3";
+	system($^X, $script, '--url', "htp://127.0.0.1:$port/ok", '--out', $out, '--status', "$out.status");
+	is $? >> 8, 1, 'exit 1';
+	my $st = do { open(my $fh, '<', "$out.status"); local $/; decode_json(<$fh>) };
+	ok $st->{local}, 'status: local';
+	ok !$st->{throttled}, 'not throttled';
+	ok !$st->{httpCode}, 'no HTTP code';
+	like $st->{error}, qr/\S/, 'with a reason: ' . ($st->{error} // '');
+};
+
 subtest 'not found: gives up at once' => sub {
 	my ($exit, $st, $out) = fetch('/404');
 	is $exit, 1, 'exit 1';
 	is $st->{state}, 'failed', 'status: failed';
 	like $st->{error}, qr/404/, 'says why';
 	is scalar(requests('/404')), 1, 'no retries';
+	ok !$st->{local}, 'the server said so: not local';
 	ok !-e $out && !-e "$out.part", 'nothing left behind';
 };
 
